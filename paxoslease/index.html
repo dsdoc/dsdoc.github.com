@@ -49,13 +49,13 @@
           <div class="body">
             
   <div class="section" id="paxoslease-paxos">
-<h1>PaxosLease算法: 实现租约的无盘Paxos算法<a class="headerlink" href="#paxoslease-paxos" title="永久链接至标题">¶</a></h1>
+<span id="introxx"></span><h1>PaxosLease算法: 实现租约的无盘Paxos算法<a class="headerlink" href="#paxoslease-paxos" title="永久链接至标题">¶</a></h1>
 <p>原文名：PaxosLease: Diskless Paxos for Leases</p>
 <p>Marton Trencseni, <a class="reference external" href="mailto:mtrencseni&#37;&#52;&#48;scalien&#46;com">mtrencseni<span>&#64;</span>scalien<span>&#46;</span>com</a>
 Attila Gazso, <a class="reference external" href="mailto:agazso&#37;&#52;&#48;scalien&#46;com">agazso<span>&#64;</span>scalien<span>&#46;</span>com</a></p>
 <p>这篇论文描述了PaxosLease算法，一种用于租约协商的分布式算法。PaxosLease基于Paxos算法，但无需写盘和时钟同步。PaxosLease在开源分布式复制KV存储Keyspace中被用来做Master租约协商。</p>
-<div class="section" id="id1">
-<h2>1. 介绍<a class="headerlink" href="#id1" title="永久链接至标题">¶</a></h2>
+<div class="section" id="intro">
+<span id="id1"></span><h2>1. 介绍<a class="headerlink" href="#intro" title="永久链接至标题">¶</a></h2>
 <p>在并发编程中，<em>锁</em> 是进程用来同步共享资源访问的基本原语。在锁以不设置过期时间方式分配（也没有一个监督进程）的系统中，锁的持有者在释放锁之前如果失效（Failure），就可能导致其它进程阻塞。</p>
 <p>在高可用系统中，期望避免单点失效导致整个系统阻塞的情况。另外，“重启”失效的系统会比重启一个多线程程序要更困难。因此，在分布式系统中，<em>租约</em> 取代锁以避免饿死的情况。一个 <em>租约</em> 就是 <em>有过期时间的锁</em> 。如果锁的持有者失效了或是和其它结点断开连接，它的租约会自动过期，其它结点可以得到租约。</p>
 <p>我们假设基本的步骤如下：系统由一组请求者和一组接受者组成，请求者和接受者都有各自的算法；系统没有拜占庭问题，即结点之间不会通过不遵守各自算法作弊（也没有被Hack）。接受者的数目是固定不变的。</p>
@@ -79,15 +79,15 @@ Attila Gazso, <a class="reference external" href="mailto:agazso&#37;&#52;&#48;sc
 <p>类似于Paxos，PaxosLease本质上处理了所有有关的失效情况：</p>
 <ol class="arabic simple">
 <li>结点停止和重启</li>
-<li>网络分割断开</li>
+<li>网络分割不通</li>
 <li>消息丢失和乱序</li>
 <li>传输中的消息延时</li>
 </ol>
 </div>
-<div class="section" id="id7">
-<h2>2. 定义<a class="headerlink" href="#id7" title="永久链接至标题">¶</a></h2>
+<div class="section" id="definitions">
+<span id="id7"></span><h2>2. 定义<a class="headerlink" href="#definitions" title="永久链接至标题">¶</a></h2>
 <p>一个PaxosLease单元由请求者和接受者组成。我们假设有 <em>n</em> 个接受者和任意个的请求者。在实践中，结点常常会同时扮演请求者和接受者的角色，但这是个实现上的问题不会影响这里的讨论。</p>
-<p>请求者发送 <em>准备请求</em> （Prepare Request）和 <em>提案请求</em> （Propose Request）消息给接受者；接受者回复的是 <em>准备响应</em> （Prepare Response）和 <em>提案响应</em> （Propose Response）消息。这些消息有下面的结构：</p>
+<p>请求者发送 <em>准备请求</em> （Prepare Request）和 <em>提案请求</em> （Propose Request）消息给接受者；接受者回应的是 <em>准备响应</em> （Prepare Response）和 <em>提案响应</em> （Propose Response）消息。这些消息有下面的结构：</p>
 <ol class="arabic simple">
 <li>准备请求 = 投票编号</li>
 <li>提案请求 = 投票编号，响应结果，已经接受了的提案</li>
@@ -104,11 +104,94 @@ Attila Gazso, <a class="reference external" href="mailto:agazso&#37;&#52;&#48;sc
 <p>每个请求者的投票编号是全局唯一的并且单调增加。在实践中，实现的方式可以是，投票编号由 <em>请求者id</em> 字段 ，一个 <em>重启计数器</em> 和 一个 请求次数的 <em>计数器</em> 字段 组成（可以处理最坏的情况）。每次请求者启动时重启计数器递增，并写到可靠的存储中。</p>
 <p>PaxosLease保证了 <em>租约不变式</em> ：在任何给定的时间点，不会有多余1个请求者持有租约。</p>
 </div>
-<div class="section" id="id8">
-<h2>3. 基本算法<a class="headerlink" href="#id8" title="永久链接至标题">¶</a></h2>
+<div class="section" id="basic-algorithm">
+<span id="id8"></span><h2>3. 基本算法<a class="headerlink" href="#basic-algorithm" title="永久链接至标题">¶</a></h2>
+<p>这一节描述分别从请求者和接受者出发的算法基本流程。请求者发送准备和提案请求，接受者回应准备和提案响应。如果一切正常和话，请求者获得租约花费两轮通信的时间。</p>
+<ol class="arabic simple">
+<li>一个请求者想要获得租约，时长 <em>T &lt; M</em> 。它生成投票编号 <tt class="docutils literal"><span class="pre">[request.ballotNumber]</span></tt>，然后发送准备请求给多数派的接受者。</li>
+</ol>
+<div class="highlight-python"><pre>Proposer::Propose()
+{
+    state.ballotNumber = NextBallotNumber()
+    request.type = PrepareRequest
+    request.ballotNumber = state.ballotNumber
+    Broadcast(request)
+}</pre>
 </div>
-<div class="section" id="id9">
-<h2>参考<a class="headerlink" href="#id9" title="永久链接至标题">¶</a></h2>
+<ol class="arabic simple" start="2">
+<li>接受者，当收到准备请求时，检查 <tt class="docutils literal"><span class="pre">[request.ballotNumber]</span></tt> 是否大于自己在 <tt class="docutils literal"><span class="pre">[state.highestPromised]</span></tt> 里承诺的本地投票编号中的最大值。如果收到编号要低则可以丢弃这个消息，或者发送一个响应结果是 <em>拒绝</em> 的准备响应。如果相等或者更高，接受者用 <em>接受</em> 的回答构造一个准备响应，回答中有当前已接受的提案 <tt class="docutils literal"><span class="pre">[state.acceptedProposal]</span></tt> ，提案可以为空。接受者设置已承诺的最高投票编号 <tt class="docutils literal"><span class="pre">[state.highestPromised]</span></tt> 为 请求消息的投票编号 <tt class="docutils literal"><span class="pre">[request.ballotNumber]</span></tt> ，然后把这个准备响应发回给请求者。</li>
+</ol>
+<div class="highlight-python"><pre>Acceptor::OnPrepareRequest()
+{
+    if (request.ballotNumber &lt; state.highestPromised)
+        return
+    state.highestPromised = request.ballotNumber
+    response.type = PrepareRespose
+    response.ballotNumber = request.ballotNumber
+    response.acceptedProposal = state.acceptedProposal // may be ’empty’
+    Send(response)
+}</pre>
+</div>
+<ol class="arabic simple" start="3">
+<li>请求者检查从接受者过来的准备响应。如果有多数派的接受者响应的是空的提案，意味着他们可以接受新的提案，请求者可以提交它自己作为租约的获得者，时长是 <em>T</em> 。请求者启动一个定时器，过期时间是 <em>T</em> 秒，发送提案请求，其中包含了投票编号 和 租约（它自己的 <em>请求者id</em> 和 <em>T</em> ）。</li>
+</ol>
+<div class="highlight-python"><pre>Proposer::OnPrepareResponse()
+{
+    if (response.ballotNumber != state.ballotNumber)
+        return // some other proposal
+    if (response.acceptedProposal == ’empty’)
+    numOpen++
+    if (numOpen &lt; majority)
+        return
+    state.timeout = T
+    SetTimeout(state.timeout)
+    request.type = ProposeRequest
+    request.ballotNumber = state.ballotNumber
+    request.proposal.proposerID = self.proposerID
+    request.proposal.timeout = state.timeout
+    Broadcast(request)
+}
+Proposer::OnTimeout()
+{
+    state.ballotNumber = empty // set in Proposer::Propose()
+    state.leaseOwner = false // set in Proposer::OnProposeResponse()
+}</pre>
+</div>
+<ol class="arabic simple" start="4">
+<li>接受者，当收到提议请求时，检查投票编号 <tt class="docutils literal"><span class="pre">[request.ballotNumber]</span></tt> 是否大于自己在 <tt class="docutils literal"><span class="pre">[state.highestPromised]</span></tt> 里承诺的本地投票编号中的最大值。如果收到编号要低则可以丢弃这个消息，或者发送一个响应结果是 <em>拒绝</em> 的提议响应。如果相等或者更高，接受者接受这个提议：启动过期时间T的超时计时，设置它已接受的提案为这个收到的提案（如果还存着前一个提案，丢弃掉）。接受者用 <em>接受</em> 的回答构造一个提议响应，回答中有投票编号 <tt class="docutils literal"><span class="pre">[request.ballotNumber]</span></tt> 。在超时过期后，接受者重置它已接受的提案为 <em>空</em> 。接受者决不重置它的已承诺的最高投票编号，除非在重启的时候。</li>
+</ol>
+<div class="highlight-python"><pre>Acceptor::OnProposeRequest()
+{
+    if (request.ballotNumber &lt; state.highestPromised)
+        return
+    state.acceptedProposal = request.proposal
+    SetTimeout(state.acceptedProposal.timeout)
+    response.type = ProposeResponse
+    response.ballotNumber = request.ballotNumber
+    Send(response)
+}
+Acceptor::OnTimeout()
+{
+    state.acceptedProposal = empty
+}</pre>
+</div>
+<ol class="arabic simple" start="5">
+<li>请求者检查提议响应消息。如果有多数派的接受者响应了接受提案，则这个请求者获得了租约直到本地的定时器超时（在第3步中启动）。它收到多数派消息的最后一条的时间点就是它获得租约的时间点，可以切换它的内部状态到“我持有租约”。</li>
+</ol>
+<div class="highlight-python"><pre>Proposer::OnProposeResponse()
+{
+    if (response.ballotNumber != state.ballotNumber)
+        return // some other proposal
+    numAccepted++
+    if (numAccepted &lt; majority)
+        return
+    state.leaseOwner = true // I am the lease owner
+}</pre>
+</div>
+<p>可以看到，接受者没有把自己的状态存到存储上。重启时，请求者以空白状态启动。为了保证重启中结点不会破坏租约不变式，结点要在重新加入网络前等待 <em>M</em> 秒。 <em>M</em> 是一个全局已知最大租约时间，所有的结点都知道，请求者请求的租约时长 <em>T</em> 总是 <em>&lt; M秒</em> 。</p>
+</div>
+<div class="section" id="references">
+<span id="id9"></span><h2>参考<a class="headerlink" href="#references" title="永久链接至标题">¶</a></h2>
 <table class="docutils footnote" frame="void" id="id10" rules="none">
 <colgroup><col class="label" /><col /></colgroup>
 <tbody valign="top">
@@ -172,10 +255,10 @@ Attila Gazso, <a class="reference external" href="mailto:agazso&#37;&#52;&#48;sc
   <h3><a href="../index.html">內容目录</a></h3>
   <ul>
 <li><a class="reference internal" href="#">PaxosLease算法: 实现租约的无盘Paxos算法</a><ul>
-<li><a class="reference internal" href="#id1">1. 介绍</a></li>
-<li><a class="reference internal" href="#id7">2. 定义</a></li>
-<li><a class="reference internal" href="#id8">3. 基本算法</a></li>
-<li><a class="reference internal" href="#id9">参考</a></li>
+<li><a class="reference internal" href="#intro">1. 介绍</a></li>
+<li><a class="reference internal" href="#definitions">2. 定义</a></li>
+<li><a class="reference internal" href="#basic-algorithm">3. 基本算法</a></li>
+<li><a class="reference internal" href="#references">参考</a></li>
 </ul>
 </li>
 </ul>
