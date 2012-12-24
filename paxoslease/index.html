@@ -54,12 +54,17 @@
             
   <div class="section" id="paxoslease-paxos">
 <h1>PaxosLease算法: 用于租约的无盘Paxos算法<a class="headerlink" href="#paxoslease-paxos" title="永久链接至标题">¶</a></h1>
+<div class="section" id="paxoslease-diskless-paxos-for-leases">
+<h2>原文名：PaxosLease: Diskless Paxos for Leases<a class="headerlink" href="#paxoslease-diskless-paxos-for-leases" title="永久链接至标题">¶</a></h2>
 <p>Marton Trencseni, <a class="reference external" href="mailto:mtrencseni&#37;&#52;&#48;scalien&#46;com">mtrencseni<span>&#64;</span>scalien<span>&#46;</span>com</a>
 Attila Gazso, <a class="reference external" href="mailto:agazso&#37;&#52;&#48;scalien&#46;com">agazso<span>&#64;</span>scalien<span>&#46;</span>com</a></p>
 <p>这篇论文描述了PaxosLease算法，一种用于租约协商的分布式算法。PaxosLease基于Paxos算法，但无需写盘和时钟同步。PaxosLease在开源分布式复制KV存储Keyspace中被用来做Master租约协商。</p>
 <div class="section" id="id1">
-<h2>1. 介绍<a class="headerlink" href="#id1" title="永久链接至标题">¶</a></h2>
-<p>在并发编程中，_锁_是进程用来同步共享资源访问的基本原语。在锁以不设置过期时间方式分配（也没有一个监督进程）的系统中，锁的持有者在释放锁之前如果出错，就可能导致其它进程阻塞。</p>
+<h3>1. 介绍<a class="headerlink" href="#id1" title="永久链接至标题">¶</a></h3>
+<p>在并发编程中，<em>锁</em> 是进程用来同步共享资源访问的基本原语。在锁以不设置过期时间方式分配（也没有一个监督进程）的系统中，锁的持有者在释放锁之前如果失效（Failure），就可能导致其它进程阻塞。</p>
+<p>在高可用系统中，期望避免单点失效导致整个系统阻塞的情况。另外，“重启”失效的系统会比重启一个多线程程序要更困难。因此，在分布式系统中，<em>租约</em> 取代锁以避免饿死的情况。一个 <em>租约</em> 就是 <em>有过期时间的锁</em> 。如果锁的持有者失效了或是和其它结点断开连接，它的租约会自动过期，其它结点可以得到租约。</p>
+<p>我们假设基本的步骤如下：系统由一组请求者和一组接受者组成，请求者和接受者都有各自的算法；系统没有拜占庭问题，即结点之间不会通过不遵守各自算法作弊（也没有被Hack）。接受者的数目是固定不变的。</p>
+</div>
 </div>
 </div>
 
@@ -72,7 +77,10 @@ Attila Gazso, <a class="reference external" href="mailto:agazso&#37;&#52;&#48;sc
   <h3><a href="../index.html">內容目录</a></h3>
   <ul>
 <li><a class="reference internal" href="#">PaxosLease算法: 用于租约的无盘Paxos算法</a><ul>
+<li><a class="reference internal" href="#paxoslease-diskless-paxos-for-leases">原文名：PaxosLease: Diskless Paxos for Leases</a><ul>
 <li><a class="reference internal" href="#id1">1. 介绍</a></li>
+</ul>
+</li>
 </ul>
 </li>
 </ul>
