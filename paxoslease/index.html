@@ -50,7 +50,22 @@
             
   <div class="section" id="paxoslease-paxos">
 <span id="paxoslease"></span><h1>【译】PaxosLease：实现租约的无盘Paxos算法<a class="headerlink" href="#paxoslease-paxos" title="永久链接至标题">¶</a></h1>
-<p>原文名：PaxosLease: Diskless Paxos for Leases</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">原文名:</th><td class="field-body"><div class="first last line-block">
+<div class="line">PaxosLease: Diskless Paxos for Leases</div>
+</div>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">翻译:</th><td class="field-body"><div class="first last line-block">
+<div class="line"><a class="reference external" href="http://oldratlee.com">Jerry Lee</a></div>
+</div>
+</td>
+</tr>
+</tbody>
+</table>
 <p>Marton Trencseni, <a class="reference external" href="mailto:mtrencseni&#37;&#52;&#48;scalien&#46;com">mtrencseni<span>&#64;</span>scalien<span>&#46;</span>com</a>
 Attila Gazso, <a class="reference external" href="mailto:agazso&#37;&#52;&#48;scalien&#46;com">agazso<span>&#64;</span>scalien<span>&#46;</span>com</a></p>
 <p>这篇论文描述了PaxosLease算法，一种用于租约协商的分布式算法。PaxosLease基于Paxos算法，但无需写盘和时钟同步。PaxosLease在开源的分布式复制KV存储Keyspace中被用来做Master租约协商。</p>
@@ -62,14 +77,8 @@ Attila Gazso, <a class="reference external" href="mailto:agazso&#37;&#52;&#48;sc
 <p>一个朴素的多数派投票式的算法可以正确地解决分布式租约的问题；这里 <em>正确</em> 的意思是，任何时候租约不会被多于一个结点持有。但是，这个简单的算法在有多个请求者时会频繁 <em>阻塞</em> ，因此需要一个更成熟的方案。</p>
 <p>朴素的多数派算法是这样的： 请求者启动一个开始本地超时计时，超时时间T秒，然后向接受者发送请求时长为T的租约。接受者收到请求后启动一个时长为T秒的定时器，然后发送接受消息给请求者。超时之后，接受者清除自己的状态。如果接受者收到一个请求但他的状态不是空，则接受者不回应或是发一个拒绝消息。为确保任何时间只有一个请求者能获得租约，请求者必须收到多数派的接受者的接受消息；这样它获取租约直到它本地的定时器超时。</p>
 <p>正如上面讨论的，有多个请求者时，有可能（而且很有可能）没有请求者能得到多数派，请求者会一直互相阻塞着。举个例子，有3个请求者1、2、3和三个接受者A、B、C，如果分布状态是这样的：A接受1的请求，B接受2的和C接受3的，然后没有一个请求者得到多数派的接受。系统必须等到超时过期，接受者清空自己的状态，这时请求者会再重试。但很很可能会再次阻塞。</p>
-<p>在本文描述的解决方法是采取Paxos <a class="footnote-reference" href="#id10" id="id2">[1]</a> 方案，引入 <em>准备</em> 和 <em>提案</em> 阶段，这样可以完全避免这类阻塞问题 <a class="footnote-reference" href="#id5" id="id3">[*]</a> 。Paxos解决复制状态机的问题，每个结点有一个本地的状态机拷贝，希望在下一个状态转换时结点间达成一致。Paxos是一个基于多数派的算法，意味着，多数派的结点没有宕并且之间可以通信，是可能的。Paxos达成一致的处理在一个状态转换上，所以在实践中，需要逐次运行多个Paxos实例来协商出一序列的状态转换 <a class="footnote-reference" href="#id12" id="id4">[3]</a> 。Paxos中，接受者在发送响应之前要先把自己的状态记录到盘上，以保证一旦一个值（状态转换）被选定，之后一直选定该值；换句话说，不管是否有出错情况出现，所有的状态机经历相同的状态转换序列。</p>
-<table class="docutils footnote" frame="void" id="id5" rules="none">
-<colgroup><col class="label" /><col /></colgroup>
-<tbody valign="top">
-<tr><td class="label"><a class="fn-backref" href="#id3">[*]</a></td><td>另一个解决方法是，让系统阻塞，但是引入一个“撤销”机制，让一个请求者撤销他们的请求从而让某个请求者可以获得租约。</td></tr>
-</tbody>
-</table>
-<p>不像之前的那些基于Paxos的分布式租约算法，比如Fatlease <a class="footnote-reference" href="#id14" id="id6">[5]</a> ，PaxosLease不对结点的本地时钟做任务时间同步的假设（也不需要全局的同步）。另外，Fatlease为了租约命令连续地运行Paxos实例，而PaxosLease利用租约的临时性完全避免了这样的复杂性，是一个更简单和优雅的算法。</p>
+<p>在本文描述的解决方法是采取Paxos <a class="footnote-reference" href="#id17" id="id2">[1]</a> 方案，引入 <em>准备</em> 和 <em>提案</em> 阶段，这样可以完全避免这类阻塞问题 <a class="footnote-reference" href="#id24" id="id3">[*]</a> 。Paxos解决复制状态机的问题，每个结点有一个本地的状态机拷贝，希望在下一个状态转换时结点间达成一致。Paxos是一个基于多数派的算法，意味着，多数派的结点没有宕并且之间可以通信，是可能的。Paxos达成一致的处理在一个状态转换上，所以在实践中，需要逐次运行多个Paxos实例来协商出一序列的状态转换 <a class="footnote-reference" href="#id19" id="id4">[3]</a> 。Paxos中，接受者在发送响应之前要先把自己的状态记录到盘上，以保证一旦一个值（状态转换）被选定，之后一直选定该值；换句话说，不管是否有出错情况出现，所有的状态机经历相同的状态转换序列。</p>
+<p>不像之前的那些基于Paxos的分布式租约算法，比如Fatlease <a class="footnote-reference" href="#id21" id="id5">[5]</a> ，PaxosLease不对结点的本地时钟做任务时间同步的假设（也不需要全局的同步）。另外，Fatlease为了租约命令连续地运行Paxos实例，而PaxosLease利用租约的临时性完全避免了这样的复杂性，是一个更简单和优雅的算法。</p>
 <p>PaxosLease是Paxos的一个自然特化变种。因为在Paxos中假设结点个数是固定的（并且结点标识是全局已知的）。PaxosLease处理一个特殊的复制状态机，形式是：</p>
 <div class="figure">
 <a class="reference internal image-reference" href="../_images/PaxosLease-distributed-state-machine.png"><img alt="../_images/PaxosLease-distributed-state-machine.png" src="../_images/PaxosLease-distributed-state-machine.png" /></a>
@@ -85,7 +94,7 @@ Attila Gazso, <a class="reference external" href="mailto:agazso&#37;&#52;&#48;sc
 </ol>
 </div>
 <div class="section" id="definitions">
-<span id="id7"></span><h2>2. 定义<a class="headerlink" href="#definitions" title="永久链接至标题">¶</a></h2>
+<span id="id6"></span><h2>2. 定义<a class="headerlink" href="#definitions" title="永久链接至标题">¶</a></h2>
 <p>一个PaxosLease单元由请求者和接受者组成。我们假设有 <em>n</em> 个接受者和任意个的请求者。在实践中，结点常常会同时扮演请求者和接受者的角色，但这是个实现上的问题不会影响这里的讨论。</p>
 <p>请求者发送 <em>准备请求</em> （Prepare Request）和 <em>提案请求</em> （Propose Request）消息给接受者；接受者回应的是 <em>准备响应</em> （Prepare Response）和 <em>提案响应</em> （Propose Response）消息。这些消息有下面的结构：</p>
 <ol class="arabic simple">
@@ -105,39 +114,39 @@ Attila Gazso, <a class="reference external" href="mailto:agazso&#37;&#52;&#48;sc
 <p>PaxosLease保证了 <em>租约不变式</em> ：在任何给定的时间点，不会有多余1个请求者持有租约。</p>
 </div>
 <div class="section" id="basic-algorithm">
-<span id="id8"></span><h2>3. 基本算法<a class="headerlink" href="#basic-algorithm" title="永久链接至标题">¶</a></h2>
+<span id="id7"></span><h2>3. 基本算法<a class="headerlink" href="#basic-algorithm" title="永久链接至标题">¶</a></h2>
 <p>这一节描述分别从请求者和接受者出发的算法基本流程。请求者发送准备和提案请求，接受者回应准备和提案响应。如果一切正常和话，请求者获得租约花费两轮通信的时间。</p>
 <ol class="arabic simple">
 <li>一个请求者想要获得租约，时长 <em>T &lt; M</em> 。它生成投票编号 <tt class="docutils literal"><span class="pre">[request.ballotNumber]</span></tt>，然后发送准备请求给多数派的接受者。</li>
 </ol>
-<div class="highlight-c++"><div class="highlight"><pre><span class="n">Proposer</span><span class="o">::</span><span class="n">Propose</span><span class="p">()</span>
+<div class="highlight-js"><div class="highlight"><pre><span class="nx">Proposer</span><span class="o">::</span><span class="nx">Propose</span><span class="p">()</span>
 <span class="p">{</span>
-    <span class="n">state</span><span class="p">.</span><span class="n">ballotNumber</span> <span class="o">=</span> <span class="n">NextBallotNumber</span><span class="p">()</span>
-    <span class="n">request</span><span class="p">.</span><span class="n">type</span> <span class="o">=</span> <span class="n">PrepareRequest</span>
-    <span class="n">request</span><span class="p">.</span><span class="n">ballotNumber</span> <span class="o">=</span> <span class="n">state</span><span class="p">.</span><span class="n">ballotNumber</span>
-    <span class="n">Broadcast</span><span class="p">(</span><span class="n">request</span><span class="p">)</span>
+    <span class="nx">state</span><span class="p">.</span><span class="nx">ballotNumber</span> <span class="o">=</span> <span class="nx">NextBallotNumber</span><span class="p">()</span>
+    <span class="nx">request</span><span class="p">.</span><span class="nx">type</span> <span class="o">=</span> <span class="nx">PrepareRequest</span>
+    <span class="nx">request</span><span class="p">.</span><span class="nx">ballotNumber</span> <span class="o">=</span> <span class="nx">state</span><span class="p">.</span><span class="nx">ballotNumber</span>
+    <span class="nx">Broadcast</span><span class="p">(</span><span class="nx">request</span><span class="p">)</span>
 <span class="p">}</span>
 </pre></div>
 </div>
 <ol class="arabic simple" start="2">
 <li>接受者，当收到准备请求时，检查 <tt class="docutils literal"><span class="pre">[request.ballotNumber]</span></tt> 是否大于自己在 <tt class="docutils literal"><span class="pre">[state.highestPromised]</span></tt> 里承诺的本地投票编号中的最大值。如果收到编号要低则可以丢弃这个消息，或者发送一个响应结果是 <em>拒绝</em> 的准备响应。如果相等或者更高，接受者用 <em>接受</em> 的回答构造一个准备响应，回答中有当前已接受的提案 <tt class="docutils literal"><span class="pre">[state.acceptedProposal]</span></tt> ，提案可以为空。接受者设置已承诺的最高投票编号 <tt class="docutils literal"><span class="pre">[state.highestPromised]</span></tt> 为 请求消息的投票编号 <tt class="docutils literal"><span class="pre">[request.ballotNumber]</span></tt> ，然后把这个准备响应发回给请求者。</li>
 </ol>
-<div class="highlight-c++"><div class="highlight"><pre><span class="n">Acceptor</span><span class="o">::</span><span class="n">OnPrepareRequest</span><span class="p">()</span>
+<div class="highlight-js"><div class="highlight"><pre><span class="nx">Acceptor</span><span class="o">::</span><span class="nx">OnPrepareRequest</span><span class="p">()</span>
 <span class="p">{</span>
-    <span class="k">if</span> <span class="p">(</span><span class="n">request</span><span class="p">.</span><span class="n">ballotNumber</span> <span class="o">&lt;</span> <span class="n">state</span><span class="p">.</span><span class="n">highestPromised</span><span class="p">)</span>
+    <span class="k">if</span> <span class="p">(</span><span class="nx">request</span><span class="p">.</span><span class="nx">ballotNumber</span> <span class="o">&lt;</span> <span class="nx">state</span><span class="p">.</span><span class="nx">highestPromised</span><span class="p">)</span>
         <span class="k">return</span>
-    <span class="n">state</span><span class="p">.</span><span class="n">highestPromised</span> <span class="o">=</span> <span class="n">request</span><span class="p">.</span><span class="n">ballotNumber</span>
-    <span class="n">response</span><span class="p">.</span><span class="n">type</span> <span class="o">=</span> <span class="n">PrepareRespose</span>
-    <span class="n">response</span><span class="p">.</span><span class="n">ballotNumber</span> <span class="o">=</span> <span class="n">request</span><span class="p">.</span><span class="n">ballotNumber</span>
-    <span class="n">response</span><span class="p">.</span><span class="n">acceptedProposal</span> <span class="o">=</span> <span class="n">state</span><span class="p">.</span><span class="n">acceptedProposal</span> <span class="c1">// may be ’empty’</span>
-    <span class="n">Send</span><span class="p">(</span><span class="n">response</span><span class="p">)</span>
+    <span class="nx">state</span><span class="p">.</span><span class="nx">highestPromised</span> <span class="o">=</span> <span class="nx">request</span><span class="p">.</span><span class="nx">ballotNumber</span>
+    <span class="nx">response</span><span class="p">.</span><span class="nx">type</span> <span class="o">=</span> <span class="nx">PrepareRespose</span>
+    <span class="nx">response</span><span class="p">.</span><span class="nx">ballotNumber</span> <span class="o">=</span> <span class="nx">request</span><span class="p">.</span><span class="nx">ballotNumber</span>
+    <span class="nx">response</span><span class="p">.</span><span class="nx">acceptedProposal</span> <span class="o">=</span> <span class="nx">state</span><span class="p">.</span><span class="nx">acceptedProposal</span> <span class="c1">// may be ’empty’</span>
+    <span class="nx">Send</span><span class="p">(</span><span class="nx">response</span><span class="p">)</span>
 <span class="p">}</span>
 </pre></div>
 </div>
 <ol class="arabic simple" start="3">
 <li>请求者检查从接受者过来的准备响应。如果有多数派的接受者响应的是空的提案，意味着他们可以接受新的提案，请求者可以提交它自己作为租约的获得者，时长是 <em>T</em> 。请求者启动一个定时器，过期时间是 <em>T</em> 秒，发送提案请求，其中包含了投票编号 和 租约（它自己的 <em>请求者id</em> 和 <em>T</em> ）。</li>
 </ol>
-<div class="highlight-c++"><pre>Proposer::OnPrepareResponse()
+<div class="highlight-js"><pre>Proposer::OnPrepareResponse()
 {
     if (response.ballotNumber != state.ballotNumber)
         return // some other proposal
@@ -162,41 +171,72 @@ Proposer::OnTimeout()
 <ol class="arabic simple" start="4">
 <li>接受者，当收到提议请求时，检查投票编号 <tt class="docutils literal"><span class="pre">[request.ballotNumber]</span></tt> 是否大于自己在 <tt class="docutils literal"><span class="pre">[state.highestPromised]</span></tt> 里承诺的本地投票编号中的最大值。如果收到编号要低则可以丢弃这个消息，或者发送一个响应结果是 <em>拒绝</em> 的提议响应。如果相等或者更高，接受者接受这个提议：启动过期时间T的超时计时，设置它已接受的提案为这个收到的提案（如果还存着前一个提案，丢弃掉）。接受者用 <em>接受</em> 的回答构造一个提议响应，回答中有投票编号 <tt class="docutils literal"><span class="pre">[request.ballotNumber]</span></tt> 。在超时过期后，接受者重置它已接受的提案为 <em>空</em> 。接受者决不重置它的已承诺的最高投票编号，除非在重启的时候。</li>
 </ol>
-<div class="highlight-c++"><div class="highlight"><pre><span class="n">Acceptor</span><span class="o">::</span><span class="n">OnProposeRequest</span><span class="p">()</span>
+<div class="highlight-js"><div class="highlight"><pre><span class="nx">Acceptor</span><span class="o">::</span><span class="nx">OnProposeRequest</span><span class="p">()</span>
 <span class="p">{</span>
-    <span class="k">if</span> <span class="p">(</span><span class="n">request</span><span class="p">.</span><span class="n">ballotNumber</span> <span class="o">&lt;</span> <span class="n">state</span><span class="p">.</span><span class="n">highestPromised</span><span class="p">)</span>
+    <span class="k">if</span> <span class="p">(</span><span class="nx">request</span><span class="p">.</span><span class="nx">ballotNumber</span> <span class="o">&lt;</span> <span class="nx">state</span><span class="p">.</span><span class="nx">highestPromised</span><span class="p">)</span>
         <span class="k">return</span>
-    <span class="n">state</span><span class="p">.</span><span class="n">acceptedProposal</span> <span class="o">=</span> <span class="n">request</span><span class="p">.</span><span class="n">proposal</span>
-    <span class="n">SetTimeout</span><span class="p">(</span><span class="n">state</span><span class="p">.</span><span class="n">acceptedProposal</span><span class="p">.</span><span class="n">timeout</span><span class="p">)</span>
-    <span class="n">response</span><span class="p">.</span><span class="n">type</span> <span class="o">=</span> <span class="n">ProposeResponse</span>
-    <span class="n">response</span><span class="p">.</span><span class="n">ballotNumber</span> <span class="o">=</span> <span class="n">request</span><span class="p">.</span><span class="n">ballotNumber</span>
-    <span class="n">Send</span><span class="p">(</span><span class="n">response</span><span class="p">)</span>
+    <span class="nx">state</span><span class="p">.</span><span class="nx">acceptedProposal</span> <span class="o">=</span> <span class="nx">request</span><span class="p">.</span><span class="nx">proposal</span>
+    <span class="nx">SetTimeout</span><span class="p">(</span><span class="nx">state</span><span class="p">.</span><span class="nx">acceptedProposal</span><span class="p">.</span><span class="nx">timeout</span><span class="p">)</span>
+    <span class="nx">response</span><span class="p">.</span><span class="nx">type</span> <span class="o">=</span> <span class="nx">ProposeResponse</span>
+    <span class="nx">response</span><span class="p">.</span><span class="nx">ballotNumber</span> <span class="o">=</span> <span class="nx">request</span><span class="p">.</span><span class="nx">ballotNumber</span>
+    <span class="nx">Send</span><span class="p">(</span><span class="nx">response</span><span class="p">)</span>
 <span class="p">}</span>
-<span class="n">Acceptor</span><span class="o">::</span><span class="n">OnTimeout</span><span class="p">()</span>
+<span class="nx">Acceptor</span><span class="o">::</span><span class="nx">OnTimeout</span><span class="p">()</span>
 <span class="p">{</span>
-    <span class="n">state</span><span class="p">.</span><span class="n">acceptedProposal</span> <span class="o">=</span> <span class="n">empty</span>
+    <span class="nx">state</span><span class="p">.</span><span class="nx">acceptedProposal</span> <span class="o">=</span> <span class="nx">empty</span>
 <span class="p">}</span>
 </pre></div>
 </div>
 <ol class="arabic simple" start="5">
 <li>请求者检查提议响应消息。如果有多数派的接受者响应了接受提案，则这个请求者获得了租约直到本地的定时器超时（在第3步中启动）。它收到多数派消息的最后一条的时间点就是它获得租约的时间点，可以切换它的内部状态到“我持有租约”。</li>
 </ol>
-<div class="highlight-c++"><div class="highlight"><pre><span class="n">Proposer</span><span class="o">::</span><span class="n">OnProposeResponse</span><span class="p">()</span>
+<div class="highlight-js"><div class="highlight"><pre><span class="nx">Proposer</span><span class="o">::</span><span class="nx">OnProposeResponse</span><span class="p">()</span>
 <span class="p">{</span>
-    <span class="k">if</span> <span class="p">(</span><span class="n">response</span><span class="p">.</span><span class="n">ballotNumber</span> <span class="o">!=</span> <span class="n">state</span><span class="p">.</span><span class="n">ballotNumber</span><span class="p">)</span>
+    <span class="k">if</span> <span class="p">(</span><span class="nx">response</span><span class="p">.</span><span class="nx">ballotNumber</span> <span class="o">!=</span> <span class="nx">state</span><span class="p">.</span><span class="nx">ballotNumber</span><span class="p">)</span>
         <span class="k">return</span> <span class="c1">// some other proposal</span>
-    <span class="n">numAccepted</span><span class="o">++</span>
-    <span class="k">if</span> <span class="p">(</span><span class="n">numAccepted</span> <span class="o">&lt;</span> <span class="n">majority</span><span class="p">)</span>
+    <span class="nx">numAccepted</span><span class="o">++</span>
+    <span class="k">if</span> <span class="p">(</span><span class="nx">numAccepted</span> <span class="o">&lt;</span> <span class="nx">majority</span><span class="p">)</span>
         <span class="k">return</span>
-    <span class="n">state</span><span class="p">.</span><span class="n">leaseOwner</span> <span class="o">=</span> <span class="kc">true</span> <span class="c1">// I am the lease owner</span>
+    <span class="nx">state</span><span class="p">.</span><span class="nx">leaseOwner</span> <span class="o">=</span> <span class="kc">true</span> <span class="c1">// I am the lease owner</span>
 <span class="p">}</span>
 </pre></div>
 </div>
 <p>可以看到，接受者没有把自己的状态存到存储上。重启时，请求者以空白状态启动。为了保证重启中结点不会破坏租约不变式，结点要在重新加入网络前等待 <em>M</em> 秒。 <em>M</em> 是一个全局已知最大租约时间，所有的结点都知道，请求者请求的租约时长 <em>T</em> 总是 <em>&lt; M秒</em> 。</p>
+<p>传递都是时间间隔（相对时间），这一点很重要，导致只有获取了租约的请求者才知道自己有租约。该请求者不能告诉其它结点它获取了租约（与经典Paxos的学习消息类似），因为其它结点不能知道学习消息在传输的过程要消耗多少时间。因此，只有获得了租约的请求者知道它自己持有租约。所有其它的结点知道的是自己没有获得租约。换句话说，每个请求者关于租约有两种状态：“我没有租约，我也不知道谁持有租约” 和 “我持有租约”。当然，结果可以发出学习消息作为 <em>hint</em> ，这可以用在高级应用中或是用来探索，但这些使用方式超出本论文范围。</p>
+<p>有可能一个请求者在第3步和第5步中没有得到多数派接受者赞同响应。这种情况下，请求者可以休眠一会儿再重新从第1步用更高的投票编号执行算法。</p>
+</div>
+<div class="section" id="proof">
+<span id="id8"></span><h2>4. 租约不变式证明<a class="headerlink" href="#proof" title="永久链接至标题">¶</a></h2>
+</div>
+<div class="section" id="liveness">
+<span id="id9"></span><h2>5. 活性（Liveness）<a class="headerlink" href="#liveness" title="永久链接至标题">¶</a></h2>
+<p>Paxos类型的算法比如PaxosLease，有动态死锁的可能：两个请求者可能连续地生成越来越高的投票编号，发送准备请求给接受者，接受者连续地增加自己承诺的最高投票编号，结果没有请求者可以让接受者接受提案。在实践中，可以通过让请求者在重新执行算法前等待一小段随机的时间来规避。</p>
+<p>Paxos类型的算法一个主要的优点是没有静态死锁，在朴素的投票算法中有说到。没有静态死锁是因为请求者可以覆盖接受者的状态，算法又保证了多数派是不会被覆盖的。</p>
+</div>
+<div class="section" id="extending-leases">
+<span id="id10"></span><h2>6. 延长租约<a class="headerlink" href="#extending-leases" title="永久链接至标题">¶</a></h2>
+<p>在某些情况下，一旦一个请求者持有资源后可以持续持有而不是一个原来的租给时间，这一点很重要。一个典型的场景是，在分布式系统中当租约指出Master结点后，期望这个结点可以长时间作为Master。</p>
+<p>为了适应这个需求，只要请求者的算法需要修改。要第3步中，如果多数派响应了空的提案或是 <em>已存在提案</em> （即这个提案中的该请求者的租约还没有过期），它可以再次提议自己为租约的持有者。这样允许请求者延长它的租约 <em>O(T)</em> 的时间。接受者的算法无需修改。</p>
+</div>
+<div class="section" id="releasing-leases">
+<span id="id11"></span><h2>7. 释放租约<a class="headerlink" href="#releasing-leases" title="永久链接至标题">¶</a></h2>
+<p>到现在的算法描述中，请求者的租约是在一定时间后自动过期的。在一些情况下，尽快释放租约让其它的结点获取是很重要的。一个典型例子是分布式处理，处理进程获得一个资源的租约，执行其上的操作，然后期望尽快释放租约好让其它处理进行获得。</p>
+<p>为了适应这个需求，请求者可以发送一个特定释放消息给接受者，消息中包含了它要释放租给的投票编号。在发送释放消息之前，请求者把内部状态从“我持有租约”切换到“我没有持有租约”。当接受者收到释放租约时，查检是否与已接受的投票编号相同。如相同则清空自己的状态；否则不做任何操作。请求者也可以发送一个释放消息给其它请求者作为提示，告诉他们可以去获取租约了。</p>
+</div>
+<div class="section" id="leases-for-many-resources">
+<span id="id12"></span><h2>8. 多个资源的租约<a class="headerlink" href="#leases-for-many-resources" title="永久链接至标题">¶</a></h2>
+<p>算法定义了关于一个资源 <em>R</em> 的租约动作。在实践中，结点会要处理多个资源，比如一个分布式处理中要用的租约。PaxosLease可以为各个资源运行独立的实例，不同的实例的消息、请求者和接受者状态标志上 <em>资源标识</em> 。一个结点作为请求者和接受者，每个PaxosLease实例消耗内存不超过 ~100字节，这样结点上1G内存可以处理 ~1千万个资源租约。再加上PaxosLease不需要硬盘同步和时钟同步，该算法可以用在很多需要细粒度锁的场景上。</p>
+</div>
+<div class="section" id="implementation">
+<span id="id13"></span><h2>9. 实现<a class="headerlink" href="#implementation" title="永久链接至标题">¶</a></h2>
+<p>在Scalien的分布式复制key-value存储Keyspace中 <a class="reference internal" href="#id26">[译注1]</a> ，PaxosLease用于Master的租约协商。Keyspace作为PaxosLease的参考实现，包含了很多实践上的优化。由于基于开源AGPL许可，感兴趣的读者可以自由获取Keyspace实现。源代码和二进制文件可以在 <a class="reference external" href="http://scalien.com">http://scalien.com</a> 下载。</p>
+</div>
+<div class="section" id="genealogy">
+<span id="id15"></span><h2>10. 宗谱<a class="headerlink" href="#genealogy" title="永久链接至标题">¶</a></h2>
 </div>
 <div class="section" id="references">
-<span id="id9"></span><h2>参考<a class="headerlink" href="#references" title="永久链接至标题">¶</a></h2>
-<table class="docutils footnote" frame="void" id="id10" rules="none">
+<span id="id16"></span><h2>参考<a class="headerlink" href="#references" title="永久链接至标题">¶</a></h2>
+<table class="docutils footnote" frame="void" id="id17" rules="none">
 <colgroup><col class="label" /><col /></colgroup>
 <tbody valign="top">
 <tr><td class="label"><a class="fn-backref" href="#id2">[1]</a></td><td><ol class="first last upperalpha simple" start="12">
@@ -205,7 +245,7 @@ Proposer::OnTimeout()
 </td></tr>
 </tbody>
 </table>
-<table class="docutils footnote" frame="void" id="id11" rules="none">
+<table class="docutils footnote" frame="void" id="id18" rules="none">
 <colgroup><col class="label" /><col /></colgroup>
 <tbody valign="top">
 <tr><td class="label">[2]</td><td><ol class="first last upperalpha simple" start="12">
@@ -214,7 +254,7 @@ Proposer::OnTimeout()
 </td></tr>
 </tbody>
 </table>
-<table class="docutils footnote" frame="void" id="id12" rules="none">
+<table class="docutils footnote" frame="void" id="id19" rules="none">
 <colgroup><col class="label" /><col /></colgroup>
 <tbody valign="top">
 <tr><td class="label"><a class="fn-backref" href="#id4">[3]</a></td><td><ol class="first last upperalpha simple" start="20">
@@ -223,7 +263,7 @@ Proposer::OnTimeout()
 </td></tr>
 </tbody>
 </table>
-<table class="docutils footnote" frame="void" id="id13" rules="none">
+<table class="docutils footnote" frame="void" id="id20" rules="none">
 <colgroup><col class="label" /><col /></colgroup>
 <tbody valign="top">
 <tr><td class="label">[4]</td><td><ol class="first last upperalpha simple" start="13">
@@ -232,19 +272,37 @@ Proposer::OnTimeout()
 </td></tr>
 </tbody>
 </table>
-<table class="docutils footnote" frame="void" id="id14" rules="none">
+<table class="docutils footnote" frame="void" id="id21" rules="none">
 <colgroup><col class="label" /><col /></colgroup>
 <tbody valign="top">
-<tr><td class="label"><a class="fn-backref" href="#id6">[5]</a></td><td><ol class="first last upperalpha simple" start="6">
+<tr><td class="label"><a class="fn-backref" href="#id5">[5]</a></td><td><ol class="first last upperalpha simple" start="6">
 <li>Hupfeld et al., FaTLease: Scalable Fault-Tolerant Lease Negotiation with Paxos, HPDC08, June 2327, 2008, Boston, Massachusetts, USA.</li>
 </ol>
 </td></tr>
 </tbody>
 </table>
-<table class="docutils footnote" frame="void" id="id15" rules="none">
+<table class="docutils footnote" frame="void" id="id22" rules="none">
 <colgroup><col class="label" /><col /></colgroup>
 <tbody valign="top">
 <tr><td class="label">[6]</td><td>AGPL License. <a class="reference external" href="http://www.fsf.org/licensing/licenses/agpl-3.0.html">http://www.fsf.org/licensing/licenses/agpl-3.0.html</a></td></tr>
+</tbody>
+</table>
+</div>
+<div class="section" id="id23">
+<h2>注释<a class="headerlink" href="#id23" title="永久链接至标题">¶</a></h2>
+<table class="docutils footnote" frame="void" id="id24" rules="none">
+<colgroup><col class="label" /><col /></colgroup>
+<tbody valign="top">
+<tr><td class="label"><a class="fn-backref" href="#id3">[*]</a></td><td>另一个解决方法是，让系统阻塞，但是引入一个“撤销”机制，让一个请求者撤销他们的请求从而让某个请求者可以获得租约。</td></tr>
+</tbody>
+</table>
+</div>
+<div class="section" id="id25">
+<h2>译注<a class="headerlink" href="#id25" title="永久链接至标题">¶</a></h2>
+<table class="docutils citation" frame="void" id="id26" rules="none">
+<colgroup><col class="label" /><col /></colgroup>
+<tbody valign="top">
+<tr><td class="label"><a class="fn-backref" href="#id14">[译注1]</a></td><td>scalien项目的GitHub工程在 <a class="reference external" href="https://github.com/scalien">https://github.com/scalien</a></td></tr>
 </tbody>
 </table>
 </div>
@@ -262,7 +320,16 @@ Proposer::OnTimeout()
 <li><a class="reference internal" href="#intro">1. 介绍</a></li>
 <li><a class="reference internal" href="#definitions">2. 定义</a></li>
 <li><a class="reference internal" href="#basic-algorithm">3. 基本算法</a></li>
+<li><a class="reference internal" href="#proof">4. 租约不变式证明</a></li>
+<li><a class="reference internal" href="#liveness">5. 活性（Liveness）</a></li>
+<li><a class="reference internal" href="#extending-leases">6. 延长租约</a></li>
+<li><a class="reference internal" href="#releasing-leases">7. 释放租约</a></li>
+<li><a class="reference internal" href="#leases-for-many-resources">8. 多个资源的租约</a></li>
+<li><a class="reference internal" href="#implementation">9. 实现</a></li>
+<li><a class="reference internal" href="#genealogy">10. 宗谱</a></li>
 <li><a class="reference internal" href="#references">参考</a></li>
+<li><a class="reference internal" href="#id23">注释</a></li>
+<li><a class="reference internal" href="#id25">译注</a></li>
 </ul>
 </li>
 </ul>
