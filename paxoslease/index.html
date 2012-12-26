@@ -77,8 +77,8 @@ Attila Gazso, <a class="reference external" href="mailto:agazso&#37;&#52;&#48;sc
 <p>一个朴素的多数派投票式的算法可以正确地解决分布式租约的问题；这里 <em>正确</em> 的意思是，任何时候租约不会被多于一个结点持有。但是，这个简单的算法在有多个请求者时会频繁 <em>阻塞</em> ，因此需要一个更成熟的方案。</p>
 <p>朴素的多数派算法是这样的： 请求者启动一个开始本地超时计时，超时时间T秒，然后向接受者发送请求时长为T的租约。接受者收到请求后启动一个时长为T秒的定时器，然后发送接受消息给请求者。超时之后，接受者清除自己的状态。如果接受者收到一个请求但他的状态不是空，则接受者不回应或是发一个拒绝消息。为确保任何时间只有一个请求者能获得租约，请求者必须收到多数派的接受者的接受消息；这样它获取租约直到它本地的定时器超时。</p>
 <p>正如上面讨论的，有多个请求者时，有可能（而且很有可能）没有请求者能得到多数派，请求者会一直互相阻塞着。举个例子，有3个请求者1、2、3和三个接受者A、B、C，如果分布状态是这样的：A接受1的请求，B接受2的和C接受3的，然后没有一个请求者得到多数派的接受。系统必须等到超时过期，接受者清空自己的状态，这时请求者会再重试。但很很可能会再次阻塞。</p>
-<p>在本文描述的解决方法是采取Paxos <a class="footnote-reference" href="#id17" id="id2">[1]</a> 方案，引入 <em>准备</em> 和 <em>提案</em> 阶段，这样可以完全避免这类阻塞问题 <a class="footnote-reference" href="#id24" id="id3">[*]</a> 。Paxos解决复制状态机的问题，每个结点有一个本地的状态机拷贝，希望在下一个状态转换时结点间达成一致。Paxos是一个基于多数派的算法，意味着，多数派的结点没有宕并且之间可以通信，是可能的。Paxos达成一致的处理在一个状态转换上，所以在实践中，需要逐次运行多个Paxos实例来协商出一序列的状态转换 <a class="footnote-reference" href="#id19" id="id4">[3]</a> 。Paxos中，接受者在发送响应之前要先把自己的状态记录到盘上，以保证一旦一个值（状态转换）被选定，之后一直选定该值；换句话说，不管是否有出错情况出现，所有的状态机经历相同的状态转换序列。</p>
-<p>不像之前的那些基于Paxos的分布式租约算法，比如Fatlease <a class="footnote-reference" href="#id21" id="id5">[5]</a> ，PaxosLease不对结点的本地时钟做任务时间同步的假设（也不需要全局的同步）。另外，Fatlease为了租约命令连续地运行Paxos实例，而PaxosLease利用租约的临时性完全避免了这样的复杂性，是一个更简单和优雅的算法。</p>
+<p>在本文描述的解决方法是采取Paxos <a class="footnote-reference" href="#id18" id="id2">[1]</a> 方案，引入 <em>准备</em> 和 <em>提案</em> 阶段，这样可以完全避免这类阻塞问题 <a class="footnote-reference" href="#id25" id="id3">[*]</a> 。Paxos解决复制状态机的问题，每个结点有一个本地的状态机拷贝，希望在下一个状态转换时结点间达成一致。Paxos是一个基于多数派的算法，意味着，多数派的结点没有宕并且之间可以通信，是可能的。Paxos达成一致的处理在一个状态转换上，所以在实践中，需要逐次运行多个Paxos实例来协商出一序列的状态转换 <a class="footnote-reference" href="#id20" id="id4">[3]</a> 。Paxos中，接受者在发送响应之前要先把自己的状态记录到盘上，以保证一旦一个值（状态转换）被选定，之后一直选定该值；换句话说，不管是否有出错情况出现，所有的状态机经历相同的状态转换序列。</p>
+<p>不像之前的那些基于Paxos的分布式租约算法，比如Fatlease <a class="footnote-reference" href="#id22" id="id5">[5]</a> ，PaxosLease不对结点的本地时钟做任务时间同步的假设（也不需要全局的同步）。另外，Fatlease为了租约命令连续地运行Paxos实例，而PaxosLease利用租约的临时性完全避免了这样的复杂性，是一个更简单和优雅的算法。</p>
 <p>PaxosLease是Paxos的一个自然特化变种。因为在Paxos中假设结点个数是固定的（并且结点标识是全局已知的）。PaxosLease处理一个特殊的复制状态机，形式是：</p>
 <div class="figure">
 <a class="reference internal image-reference" href="../_images/PaxosLease-distributed-state-machine.png"><img alt="../_images/PaxosLease-distributed-state-machine.png" src="../_images/PaxosLease-distributed-state-machine.png" /></a>
@@ -238,10 +238,10 @@ Proposer::OnTimeout()
 </div>
 <div class="section" id="implementation">
 <span id="id13"></span><h2>9. 实现<a class="headerlink" href="#implementation" title="永久链接至标题">¶</a></h2>
-<p>在Scalien的分布式复制key-value存储Keyspace中 <a class="footnote-reference" href="#id25" id="id14">[†]</a><sup>译注</sup>，PaxosLease用于Master的租约协商。Keyspace作为PaxosLease的参考实现，包含了很多实践上的优化。由于基于开源AGPL许可，感兴趣的读者可以自由获取Keyspace实现。源代码和二进制文件可以在 <a class="reference external" href="http://scalien.com">http://scalien.com</a> 下载。</p>
+<p>在Scalien的分布式复制key-value存储Keyspace中 <a class="footnote-reference" href="#id26" id="id14">[†]</a><sup>译注</sup>，PaxosLease用于Master的租约协商。Keyspace作为PaxosLease的参考实现，包含了很多实践上的优化。由于基于开源AGPL许可，感兴趣的读者可以自由获取Keyspace实现。源代码和二进制文件可以在 <a class="reference external" href="http://scalien.com">http://scalien.com</a> <a class="footnote-reference" href="#id27" id="id15">[‡]</a><sup>译注</sup> 下载。</p>
 </div>
 <div class="section" id="genealogy">
-<span id="id15"></span><h2>10. 宗谱<a class="headerlink" href="#genealogy" title="永久链接至标题">¶</a></h2>
+<span id="id16"></span><h2>10. 宗谱<a class="headerlink" href="#genealogy" title="永久链接至标题">¶</a></h2>
 <p>Leslie Lamport在1990年发明Paxos算法，但在1998才发表的。这篇论文《The Part-Time Parliament》对于很多读者过于极客，这导致第二篇论文《Paxos Made Simple》。Paxos通过引入个准备和提议两个阶段和让接受者在响应消息前把自己状态写入稳定存储，解决了发布式一致性问题。多轮的Paxos可以顺序运行以协调复制状态机的状态转换。</p>
 <p>在论文《Paxos Made Live - An Engineering Perspective》和《The Chubby Lock
 Service for Loosely-Coupled Distributed Systems》中描述的Google内部的分布式实现栈用了Paxos，这让Paxos流行起来。在Google的Chubby中，多轮顺序执行Paxos以达到，在复制数据库中下次写操作上的一致性，提供了思考复制状态机的另一种方法。</p>
@@ -249,8 +249,8 @@ Service for Loosely-Coupled Distributed Systems》中描述的Google内部的分
 Paxos》中描述的Fatlease解决了和PaxosLease一样的问题，但它结构更复杂，因为模仿了在Google论文中提到的多轮Paxos，而不是PaxosLease所用的简单的接受者状态超时。另外，FaTLease需要结点同步他们的时钟，这一点使的它在现实世界使用中没有吸引力。PaxosLease灵感来自于FaTLease，解决了上述的缺点。</p>
 </div>
 <div class="section" id="references">
-<span id="id16"></span><h2>参考<a class="headerlink" href="#references" title="永久链接至标题">¶</a></h2>
-<table class="docutils footnote" frame="void" id="id17" rules="none">
+<span id="id17"></span><h2>参考<a class="headerlink" href="#references" title="永久链接至标题">¶</a></h2>
+<table class="docutils footnote" frame="void" id="id18" rules="none">
 <colgroup><col class="label" /><col /></colgroup>
 <tbody valign="top">
 <tr><td class="label"><a class="fn-backref" href="#id2">[1]</a></td><td><ol class="first last upperalpha simple" start="12">
@@ -259,7 +259,7 @@ Paxos》中描述的Fatlease解决了和PaxosLease一样的问题，但它结构
 </td></tr>
 </tbody>
 </table>
-<table class="docutils footnote" frame="void" id="id18" rules="none">
+<table class="docutils footnote" frame="void" id="id19" rules="none">
 <colgroup><col class="label" /><col /></colgroup>
 <tbody valign="top">
 <tr><td class="label">[2]</td><td><ol class="first last upperalpha simple" start="12">
@@ -268,7 +268,7 @@ Paxos》中描述的Fatlease解决了和PaxosLease一样的问题，但它结构
 </td></tr>
 </tbody>
 </table>
-<table class="docutils footnote" frame="void" id="id19" rules="none">
+<table class="docutils footnote" frame="void" id="id20" rules="none">
 <colgroup><col class="label" /><col /></colgroup>
 <tbody valign="top">
 <tr><td class="label"><a class="fn-backref" href="#id4">[3]</a></td><td><ol class="first last upperalpha simple" start="20">
@@ -277,7 +277,7 @@ Paxos》中描述的Fatlease解决了和PaxosLease一样的问题，但它结构
 </td></tr>
 </tbody>
 </table>
-<table class="docutils footnote" frame="void" id="id20" rules="none">
+<table class="docutils footnote" frame="void" id="id21" rules="none">
 <colgroup><col class="label" /><col /></colgroup>
 <tbody valign="top">
 <tr><td class="label">[4]</td><td><ol class="first last upperalpha simple" start="13">
@@ -286,7 +286,7 @@ Paxos》中描述的Fatlease解决了和PaxosLease一样的问题，但它结构
 </td></tr>
 </tbody>
 </table>
-<table class="docutils footnote" frame="void" id="id21" rules="none">
+<table class="docutils footnote" frame="void" id="id22" rules="none">
 <colgroup><col class="label" /><col /></colgroup>
 <tbody valign="top">
 <tr><td class="label"><a class="fn-backref" href="#id5">[5]</a></td><td><ol class="first last upperalpha simple" start="6">
@@ -295,25 +295,31 @@ Paxos》中描述的Fatlease解决了和PaxosLease一样的问题，但它结构
 </td></tr>
 </tbody>
 </table>
-<table class="docutils footnote" frame="void" id="id22" rules="none">
+<table class="docutils footnote" frame="void" id="id23" rules="none">
 <colgroup><col class="label" /><col /></colgroup>
 <tbody valign="top">
 <tr><td class="label">[6]</td><td>AGPL License. <a class="reference external" href="http://www.fsf.org/licensing/licenses/agpl-3.0.html">http://www.fsf.org/licensing/licenses/agpl-3.0.html</a></td></tr>
 </tbody>
 </table>
 </div>
-<div class="section" id="id23">
-<h2>注<a class="headerlink" href="#id23" title="永久链接至标题">¶</a></h2>
-<table class="docutils footnote" frame="void" id="id24" rules="none">
+<div class="section" id="id24">
+<h2>注<a class="headerlink" href="#id24" title="永久链接至标题">¶</a></h2>
+<table class="docutils footnote" frame="void" id="id25" rules="none">
 <colgroup><col class="label" /><col /></colgroup>
 <tbody valign="top">
 <tr><td class="label"><a class="fn-backref" href="#id3">[*]</a></td><td>另一个解决方法是，让系统阻塞，但是引入一个“撤销”机制，让一个请求者撤销他们的请求从而让某个请求者可以获得租约。</td></tr>
 </tbody>
 </table>
-<table class="docutils footnote" frame="void" id="id25" rules="none">
+<table class="docutils footnote" frame="void" id="id26" rules="none">
 <colgroup><col class="label" /><col /></colgroup>
 <tbody valign="top">
 <tr><td class="label"><a class="fn-backref" href="#id14">[†]</a></td><td>译注，scalien的GitHub代码工程在 <a class="reference external" href="https://github.com/scalien">https://github.com/scalien</a></td></tr>
+</tbody>
+</table>
+<table class="docutils footnote" frame="void" id="id27" rules="none">
+<colgroup><col class="label" /><col /></colgroup>
+<tbody valign="top">
+<tr><td class="label"><a class="fn-backref" href="#id15">[‡]</a></td><td>译注，这个网站已经没有内容了，Keyspace源代码可以在 <a class="reference external" href="https://github.com/scalien/keyspace">https://github.com/scalien/keyspace</a>。</td></tr>
 </tbody>
 </table>
 </div>
@@ -339,7 +345,7 @@ Paxos》中描述的Fatlease解决了和PaxosLease一样的问题，但它结构
 <li><a class="reference internal" href="#implementation">9. 实现</a></li>
 <li><a class="reference internal" href="#genealogy">10. 宗谱</a></li>
 <li><a class="reference internal" href="#references">参考</a></li>
-<li><a class="reference internal" href="#id23">注</a></li>
+<li><a class="reference internal" href="#id24">注</a></li>
 </ul>
 </li>
 </ul>
