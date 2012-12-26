@@ -8,7 +8,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>【译】PaxosLease：实现租约的无盘Paxos算法 &mdash; dsdoc v0.0.1</title>
+    <title>【译】PaxosLease：实现租约的无盘Paxos算法 &mdash; distributed system documents(dsdoc) v0.0.1-alpha</title>
     
     <link rel="stylesheet" href="../_static/default.css" type="text/css" />
     <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
@@ -16,7 +16,7 @@
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '../',
-        VERSION:     '0.0.1',
+        VERSION:     '0.0.1-alpha',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true
@@ -26,7 +26,7 @@
     <script type="text/javascript" src="../_static/underscore.js"></script>
     <script type="text/javascript" src="../_static/doctools.js"></script>
     <script type="text/javascript" src="../_static/translations.js"></script>
-    <link rel="top" title="dsdoc v0.0.1" href="../index.html" />
+    <link rel="top" title="distributed system documents(dsdoc) v0.0.1-alpha" href="../index.html" />
     <link rel="prev" title="分布式系统文档" href="../index.html" /> 
   </head>
   <body>
@@ -39,7 +39,7 @@
         <li class="right" >
           <a href="../index.html" title="分布式系统文档"
              accesskey="P">上一页</a> |</li>
-        <li><a href="../index.html">dsdoc v0.0.1</a> &raquo;</li> 
+        <li><a href="../index.html">distributed system documents(dsdoc) v0.0.1-alpha</a> &raquo;</li> 
       </ul>
     </div>  
 
@@ -307,7 +307,7 @@ Paxos》中描述的Fatlease解决了和PaxosLease一样的问题，但它结构
 <table class="docutils footnote" frame="void" id="id25" rules="none">
 <colgroup><col class="label" /><col /></colgroup>
 <tbody valign="top">
-<tr><td class="label"><a class="fn-backref" href="#id3">[*]</a></td><td>另一个解决方法是，让系统阻塞，但是引入一个“撤销”机制，让一个请求者撤销他们的请求从而让某个请求者可以获得租约。</td></tr>
+<tr><td class="label"><a class="fn-backref" href="#id3">[*]</a></td><td>另一个解决方法是，让系统阻塞，但是引入一个“撤销”机制，让请求者撤销他的请求从而让其它某个请求者可以获得租约。</td></tr>
 </tbody>
 </table>
 <table class="docutils footnote" frame="void" id="id26" rules="none">
@@ -319,7 +319,7 @@ Paxos》中描述的Fatlease解决了和PaxosLease一样的问题，但它结构
 <table class="docutils footnote" frame="void" id="id27" rules="none">
 <colgroup><col class="label" /><col /></colgroup>
 <tbody valign="top">
-<tr><td class="label"><a class="fn-backref" href="#id15">[‡]</a></td><td>译注，这个网站已经没有内容了，Keyspace源代码可以在 <a class="reference external" href="https://github.com/scalien/keyspace">https://github.com/scalien/keyspace</a>。</td></tr>
+<tr><td class="label"><a class="fn-backref" href="#id15">[‡]</a></td><td>译注，这个网站已经没有内容了，Keyspace源代码可以在 <a class="reference external" href="https://github.com/scalien/keyspace">https://github.com/scalien/keyspace</a> 下载。</td></tr>
 </tbody>
 </table>
 </div>
@@ -384,7 +384,7 @@ Paxos》中描述的Fatlease解决了和PaxosLease一样的问题，但它结构
         <li class="right" >
           <a href="../index.html" title="分布式系统文档"
              >上一页</a> |</li>
-        <li><a href="../index.html">dsdoc v0.0.1</a> &raquo;</li> 
+        <li><a href="../index.html">distributed system documents(dsdoc) v0.0.1-alpha</a> &raquo;</li> 
       </ul>
     </div>
     <div class="footer">
