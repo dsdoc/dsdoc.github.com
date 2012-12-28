@@ -3,4 +3,6 @@
 
 分布式系统论文翻译和文档整理。
 
-[Sphinx工程](https://github.com/dsdoc/dsdoc)
+这个是Web Hosting工程。
+
+[Sphinx代码工程](https://github.com/dsdoc/dsdoc)
