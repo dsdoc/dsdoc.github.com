@@ -84,21 +84,21 @@
 <div class="section" id="id1">
 <h2>译序<a class="headerlink" href="#id1" title="永久链接至标题">¶</a></h2>
 <p>“在PODC2001会议上，我总是听到人们在抱怨paxos算法是那么的难以理解。人们总是被那些古希腊的名称弄得晕头转向，而使得他们觉得论文难以理解，实际上算法本身是很简单的。于是在会议期间我就找了几个人聚在一起，试着直接向他们口头解释该算法。回家之后，我将这些内容整理了下来，后来又基于Fred Schneider和Butler Lampson的建议做了修改。就形成了现在的这个版本，虽然已经有13页长了，但是其中仍未包含任何一个比 <cite>n1 &gt; n2</cite> 更复杂的公式。”</p>
-<p>上面这段摘自Lamport的my writings，my writings是Lamport本人对自己以往发表的论文的一些总结，其中很多文字涉及到这些论文的创作来源。可以看出该论文的产生经历，与拜占庭将军问题有着截然相反的历程，在发表The Byzantine General Problem的时候，作者是用拜占庭将军这一场景引入到原来的算法中，而Paxos则是作者最初就是用古希腊的故事情节来描述，我想当时作者之所以采用一个故事性的背景，也是因为拜占庭将军这一写作方法带来的成功而受到的影响。只是事与愿违，人们觉得那篇《The Part-Time Parliament》 <a class="footnote-reference" href="#id39" id="id2">[5]</a> 太难理解了，而且通篇没有数学化的公式证明。</p>
+<p>上面这段摘自Lamport的my writings，my writings是Lamport本人对自己以往发表的论文的一些总结，其中很多文字涉及到这些论文的创作来源。可以看出该论文的产生经历，与拜占庭将军问题有着截然相反的历程，在发表The Byzantine General Problem的时候，作者是用拜占庭将军这一场景引入到原来的算法中，而Paxos则是作者最初就是用古希腊的故事情节来描述，我想当时作者之所以采用一个故事性的背景，也是因为拜占庭将军这一写作方法带来的成功而受到的影响。只是事与愿违，人们觉得那篇《The Part-Time Parliament》 <a class="footnote-reference" href="#id40" id="id2">[5]</a> 太难理解了，而且通篇没有数学化的公式证明。</p>
 <p>根据Lamport的说法，当时的三个审稿人认为这篇文章虽然重要性不够但还有点意思，只是还应该把所有有关Paxos(Lamport在论文中虚构出的一个岛屿的名称)这一描述的地方全部删掉，但是Lamport觉得这些人太没幽默感了，也就没有按照他们要求的去做。以至于作者虽然在1990年就将它提交给了TOCS，但直到1998年才被发表。但是发表之后，很多人还是觉得原来那篇太难理解了，于是才产生了这一篇。不过现在回头再看，虽然当时Lamport的写作方式令文章被埋没了数年，但是也正因此才产生了如此有趣的一则轶闻，Paxos也成为该算法无可争议的名称，虽然另一篇文章《Viewstamped Replication: A New Primary Copy Method to Support Highly-Available Distributed Systems》在1988年就独立地提出了类paxos的一致性算法。</p>
 </div>
 <div class="section" id="id3">
 <h2>摘要<a class="headerlink" href="#id3" title="永久链接至标题">¶</a></h2>
-<p>用简单英语来讲述时，Paxos算法是很简单的。</p>
+<p>The Paxos algorithm, when presented in plain English, is very simple. <a class="footnote-reference" href="#id42" id="id4">[*]</a><sup>译注</sup></p>
 </div>
-<div class="section" id="id4">
-<h2>1 导引<a class="headerlink" href="#id4" title="永久链接至标题">¶</a></h2>
-<p>用于实现容错的分布式系统的Paxos算法，一直以来总是被认为很难理解，或许是因为对很多人来说，并不习惯以希腊故事展开的论文形式 <a class="footnote-reference" href="#id39" id="id5">[5]</a> 。事实上，它应该是众多分布式算法中最简单易见的一个了。它的核心就是一个一致性算——论文 <a class="footnote-reference" href="#id39" id="id6">[5]</a> 中的“synod”算法。从下一个章节可以看出，它基本上就是根据一个一致性算法所必需满足的条件而顺理成章的呈现出来的。最后一个章节，我们还会通过将Paxos算法作为一个使用状态机的分布式系统构建模式中的一致性实现部分，来完整的描述它。这种使用状态机的方法来构建分布式系统最初是由论文 <a class="footnote-reference" href="#id38" id="id7">[4]</a> 引入的，早已为人所熟知，而这篇论文估计也已经是分布式系统理论研究领域被引用地最广泛的了。</p>
+<div class="section" id="id5">
+<h2>1 导引<a class="headerlink" href="#id5" title="永久链接至标题">¶</a></h2>
+<p>用于实现容错的分布式系统的Paxos算法，一直以来总是被认为很难理解，或许是因为对很多人来说，并不习惯以希腊故事展开的论文形式 <a class="footnote-reference" href="#id40" id="id6">[5]</a> 。事实上，它应该是众多分布式算法中最简单易见的一个了。它的核心就是一个一致性算——论文 <a class="footnote-reference" href="#id40" id="id7">[5]</a> 中的“synod”算法。从下一个章节可以看出，它基本上就是根据一个一致性算法所必需满足的条件而顺理成章的呈现出来的。最后一个章节，我们还会通过将Paxos算法作为一个使用状态机的分布式系统构建模式中的一致性实现部分，来完整的描述它。这种使用状态机的方法来构建分布式系统最初是由论文 <a class="footnote-reference" href="#id39" id="id8">[4]</a> 引入的，早已为人所熟知，而这篇论文估计也已经是分布式系统理论研究领域被引用地最广泛的了。</p>
 </div>
-<div class="section" id="id8">
-<h2>2 一致性算法<a class="headerlink" href="#id8" title="永久链接至标题">¶</a></h2>
 <div class="section" id="id9">
-<h3>2.1 问题描述<a class="headerlink" href="#id9" title="永久链接至标题">¶</a></h3>
+<h2>2 一致性算法<a class="headerlink" href="#id9" title="永久链接至标题">¶</a></h2>
+<div class="section" id="id10">
+<h3>2.1 问题描述<a class="headerlink" href="#id10" title="永久链接至标题">¶</a></h3>
 <p>假设有一组可以提出提案的进程集合。一个一致性算法需要保证：在这些被提出的提案中，只有一个会被选定；如果，没有提案被提出，那么就不会有被选定的提案；当一个提案被选定后，进程应该可以获取被选定的提案信息。</p>
 <p>对于一致性来说，安全性(safety)需求就是这样的：</p>
 <ul class="simple">
@@ -106,23 +106,23 @@
 <li>只能有一个值被选定(chosen)，同时</li>
 <li>如果某个进程认为某个提案被选定了，那么这个提案必须是真的被选定的那个。</li>
 </ul>
-<p>我们不会精确地描述活性(livness)需求。整体上来说，目标就是要保证最终有一个提案会被选定，当提案被选定后，进程最终也能获取到被选定的提案。 <a class="footnote-reference" href="#id41" id="id10">[*]</a><sup>译注</sup></p>
+<p>我们不会精确地描述活性(livness)需求。整体上来说，目标就是要保证最终有一个提案会被选定，当提案被选定后，进程最终也能获取到被选定的提案。 <a class="footnote-reference" href="#id43" id="id11">[†]</a><sup>译注</sup></p>
 <p>在该一致性算法中，有三种参与角色，我们用 <cite>proposers</cite> ， <cite>acceptors</cite> 和 <cite>learners</cite> 来表示。在具体的实现中，一个进程可能充当不止一种角色，在这里我们并不关心进程如何映射到各种角色。</p>
 <p>假设不同参与者之间可以通过发送消息来通信，我们使用普通的非拜占庭模式的异步模型：</p>
 <ul class="simple">
 <li>每个参与者以任意的速度执行，可能会出错而停止，也可能会重启。当一个提案被选定后，所有的参与者都有可能失败或重启，因此除非那些失败或重启的参与者可以记录某些信息，否则是不可能存在一个解的。</li>
-<li>消息在传输中可能花费任意的时间，可能会重复，丢失，但是不会被损坏。 <a class="footnote-reference" href="#id42" id="id11">[†]</a><sup>译注</sup></li>
+<li>消息在传输中可能花费任意的时间，可能会重复，丢失，但是不会被损坏。 <a class="footnote-reference" href="#id44" id="id12">[‡]</a><sup>译注</sup></li>
 </ul>
 </div>
-<div class="section" id="id12">
-<h3>2.2 提案的选定<a class="headerlink" href="#id12" title="永久链接至标题">¶</a></h3>
+<div class="section" id="id13">
+<h3>2.2 提案的选定<a class="headerlink" href="#id13" title="永久链接至标题">¶</a></h3>
 <p>选定提案的最简单方式就是只允许一个accpetor存在。proposer发送提案给accpetor，acceptor会选择它接收到的第一个提案作为被选定的提案。尽管简单，但是这个解决方式却很难让人满意，因为如果accpetor出错，那么整个系统就无法工作了。</p>
-<p>因此，应该选择其他的方式。比如我们用多个accpetor来避免一个accpetor时的单点问题。现在，proposer向一个acceptor集合发送提案，某个acceptor可能会通过(accept)这个提案。当有足够多的acceptor通过(accept)它的时候，我们就可以认为这个提案被选定了。什么是足够多呢？为了能确保只有一个提案被选定，我们可以让这个集合大的可以包含acceptor集合中的多数成员。因为任何两个多数集至少有一个公共成员，如果我们再规定一个acceptor最多只能通过一个提案，那么就能保证只有一个提案被选定(这是对于很多论文都研究过的majority的一个简单的应用 <a class="footnote-reference" href="#id37" id="id13">[3]</a> )。</p>
+<p>因此，应该选择其他的方式。比如我们用多个accpetor来避免一个accpetor时的单点问题。现在，proposer向一个acceptor集合发送提案，某个acceptor可能会通过(accept)这个提案。当有足够多的acceptor通过(accept)它的时候，我们就可以认为这个提案被选定了。什么是足够多呢？为了能确保只有一个提案被选定，我们可以让这个集合大的可以包含acceptor集合中的多数成员。因为任何两个多数集至少有一个公共成员，如果我们再规定一个acceptor最多只能通过一个提案，那么就能保证只有一个提案被选定(这是对于很多论文都研究过的majority的一个简单的应用 <a class="footnote-reference" href="#id38" id="id14">[3]</a> )。</p>
 <p>在没有失败和消息丢失的情况下，如果我们希望即使在只有一个提案被提出的情况下，仍然可以选出一个提案来，这就暗示了如下这个需求：</p>
 <blockquote>
 <div>P1：一个acceptor必须通过(accept)它收到的第一个提案。</div></blockquote>
-<p>但是这个需求引出了另外一个问题。如果有多个提案被不同的proposers同时提出，这可能会导致虽然每个acceptor都通过了一个提案，但是没有一个提案是由多数人都通过的。即使是只有两个提案，如果每个都被差不多一半的acceptors通过了，此时即使只有一个acceptor出错都可能使得无法确定该选定哪个提案。 <a class="footnote-reference" href="#id43" id="id14">[‡]</a><sup>译注</sup></p>
-<p><cite>P1</cite> 再加上一个提案被选定需要由半数以上的acceptor通过的需求暗示着一个acceptor必须能够通过(accept)不止一个提案。我们为每个提案设定一个编号来记录一个acceptor通过的那些提案。为了避免混淆，需要保证不同的提案具有不同的编号。如何实现这种保证取决于实现，目前我们假设已经提供了这种保证。当一个具有某value值的提案被半数以上的acceptor通过后，我们就认为该value被选定了。此时我们也认为该提案被选定了。 <a class="footnote-reference" href="#id44" id="id15">[§]</a><sup>译注</sup></p>
+<p>但是这个需求引出了另外一个问题。如果有多个提案被不同的proposers同时提出，这可能会导致虽然每个acceptor都通过了一个提案，但是没有一个提案是由多数人都通过的。即使是只有两个提案，如果每个都被差不多一半的acceptors通过了，此时即使只有一个acceptor出错都可能使得无法确定该选定哪个提案。 <a class="footnote-reference" href="#id45" id="id15">[§]</a><sup>译注</sup></p>
+<p><cite>P1</cite> 再加上一个提案被选定需要由半数以上的acceptor通过的需求暗示着一个acceptor必须能够通过(accept)不止一个提案。我们为每个提案设定一个编号来记录一个acceptor通过的那些提案。为了避免混淆，需要保证不同的提案具有不同的编号。如何实现这种保证取决于实现，目前我们假设已经提供了这种保证。当一个具有某value值的提案被半数以上的acceptor通过后，我们就认为该value被选定了。此时我们也认为该提案被选定了。 <a class="footnote-reference" href="#id46" id="id16">[¶]</a><sup>译注</sup></p>
 <p>我们允许多个提案被选定，但是我们必须要保证所有被选定的提案都具有相同的value值。在提案编号上规约，它需要保证：</p>
 <blockquote>
 <div><cite>P2</cite>. 如果具有value值v的提案被选定(chosen)了，那么所有比它编号更高的被选定的提案的value值也必须是v。</div></blockquote>
@@ -145,7 +145,7 @@
 <li><cite>v</cite> 是 <cite>S</cite> 中所有acceptor通过的编号小于 <cite>n</cite> 的具有最大编号的提案的value值。</li>
 </ol>
 </div></blockquote>
-<p>通过维护 <cite>P2</cite><sup>c</sup> 我们就可以保证 <cite>P2</cite><sup>b</sup> 了。 <a class="footnote-reference" href="#id45" id="id16">[¶]</a><sup>译注</sup></p>
+<p>通过维护 <cite>P2</cite><sup>c</sup> 我们就可以保证 <cite>P2</cite><sup>b</sup> 了。 <a class="footnote-reference" href="#id47" id="id17">[#]</a><sup>译注</sup></p>
 <p>为了维护 <cite>P2</cite><sup>c</sup> 的不变性，一个proposer在产生编号为n的提案时，必须要知道某一个将要或已经被半数以上acceptor通过的编号小于n的最大编号的提案。获取那些已经被通过的提案很简单，但是预测未来会被通过的那些却很困难。在这里，为了避免让proposer去预测未来，我们通过限定不会有那样的通过情况来控制它。换句话说，proposer会请求acceptors不要再通过任何编号小于 <cite>n</cite> 的提案。这就导致了如下的提案生成算法：</p>
 <ol class="arabic">
 <li><p class="first">proposer选择一个新的提案编号n，然后向某个acceptors集合的成员发送请求，要求acceptor做出如下回应：</p>
@@ -173,7 +173,7 @@
 <blockquote>
 <div><ol class="loweralpha simple">
 <li>proposer选择一个提案编号n，然后向acceptors的某个majority集合的成员发送编号为n的prepare请求。</li>
-<li>如果一个acceptor收到一个编号为n的prepare请求，且n大于它已经响应的所有prepare请求的编号。那么它就会保证不会再通过(accept)任何编号小于n的提案，同时将它已经通过的最大编号的提案(如果存在的话)作为响应。 <a class="footnote-reference" href="#id46" id="id17">[#]</a><sup>译注</sup></li>
+<li>如果一个acceptor收到一个编号为n的prepare请求，且n大于它已经响应的所有prepare请求的编号。那么它就会保证不会再通过(accept)任何编号小于n的提案，同时将它已经通过的最大编号的提案(如果存在的话)作为响应。 <a class="footnote-reference" href="#id48" id="id18">[♠]</a><sup>译注</sup></li>
 </ol>
 </div></blockquote>
 <dl class="docutils">
@@ -186,105 +186,111 @@
 </dl>
 <p>一个proposer可能或产生多个提案，只要它是遵循如上的算法即可。它可以在任意时刻丢弃某个提案。(即使针对该提案的请求和响应在提案被丢弃很久后才到达，正确性依然可以保证)。如果某个proposer已经在试图生成编号更大的提案，那么丢弃未尝不是一个好的选择。因此如果一个acceptor因为已经收到更大编号的prepare请求而忽略某个prepare或者accept请求时，那么它也应当通知它的proposer，然后该proposer应该丢弃该提案。当然，这只是一个不影响正确性的性能优化。</p>
 </div>
-<div class="section" id="id18">
-<h3>2.3 获取被选定的提案值<a class="headerlink" href="#id18" title="永久链接至标题">¶</a></h3>
+<div class="section" id="id19">
+<h3>2.3 获取被选定的提案值<a class="headerlink" href="#id19" title="永久链接至标题">¶</a></h3>
 <p>为了获取被选定的值，一个learner必须确定一个提案已经被半数以上的acceptor通过。最明显的算法是，让每个acceptor，只要它通过了一个提案，就通知所有的learners，将它通过的提案告知它们。这可以让learners尽快的找出被选定的值，但是它需要每个acceptor都要与每个learner通信—所需通信的次数等于二者个数的乘积。</p>
 <p>在假定非拜占庭错误的情况下，一个learner可以很容易地通过另一个learner了解到一个值已经被选定。我们可以让所有的acceptor将它们的通过信息发送给一个特定的learner，当一个value被选定时，再由它通知其他的learners。这种方法，需要多一个步骤才能通知到所有的learners。而且也是不可靠的，因为那个特定的learner可能会失败。但是这种情况下的通信次数，只是acceptors和learners的个数的和。</p>
 <p>更一般的，acceptors可以将它们的通过信息发送给一个特定的learners集合，它们中的每个都可以在一个value被选定后通知所有的learners。这个集合中的learners个数越多，可靠性就越好，但是通信复杂度就越高。</p>
-<p>由于消息的丢失，一个value被选定后，可能没有learners会发现。Learner可以询问acceptors它们通过了哪些提案，但是一个acceptor出错，都有可能导致无法判断出是否已经有半数以上的acceptors通过的提案。在这种情况下，只有当一个新的提案被选定时，learners才能发现被选定的value。因此如果一个learner想知道是否已经选定一个value，它可以让proposer利用上面的算法产生一个提案。 <a class="footnote-reference" href="#id47" id="id19">[♠]</a><sup>译注</sup></p>
+<p>由于消息的丢失，一个value被选定后，可能没有learners会发现。Learner可以询问acceptors它们通过了哪些提案，但是一个acceptor出错，都有可能导致无法判断出是否已经有半数以上的acceptors通过的提案。在这种情况下，只有当一个新的提案被选定时，learners才能发现被选定的value。因此如果一个learner想知道是否已经选定一个value，它可以让proposer利用上面的算法产生一个提案。 <a class="footnote-reference" href="#id49" id="id20">[♥]</a><sup>译注</sup></p>
 </div>
-<div class="section" id="id20">
-<h3>2.4 进展性<a class="headerlink" href="#id20" title="永久链接至标题">¶</a></h3>
+<div class="section" id="id21">
+<h3>2.4 进展性<a class="headerlink" href="#id21" title="永久链接至标题">¶</a></h3>
 <p>很容易构造出一种情况，在该情况下，两个proposers持续地生成编号递增的一系列提案，但是没有提案会被选定。Proposer <cite>p</cite> 为一个编号为 <cite>n</cite><sub>1</sub> 的提案完成了phase1，然后另一个Proposer q为编号为 <cite>n</cite><sub>2``(n</sub><sub>2</sub> &gt; <cite>n</cite><sub>1</sub>)的提案完成了phase1。Proposer p的针对编号n1的提案的phase2的所有accept请求被忽略，因为acceptors已经承诺不再通过任何编号小于n2的提案。这样proposer p就会用一个新的编号 n`:sub:<cite>3``( n</cite><sub>3</sub> <cite>&gt; n</cite><sub>2</sub>)重新开始并完成phase1，这又会导致在phase2里proposer q的所有accept请求被忽略，如此循环往复。</p>
 <p>为了保证进度，必须选择一个特定的proposer来作为一个唯一的提案提出者。如果这个proposer可以同半数以上的acceptors通信，同时可以使用一个比现有的编号都大的编号的提案的话，那么它就可以成功的产生一个可以被通过的提案。再通过当它知道某些更高编号的请求时，舍弃当前的提案并重做，这个proposer最终一定会产生一个足够大的提案编号。</p>
-<p>如果系统中有足够的组件(proposer，acceptors及通信网络)工作良好，通过选择一个特定的proposer，活性就可以达到。著名的FLP结论 <a class="footnote-reference" href="#id35" id="id21">[1]</a> 指出，一个可靠的proposer选举算法要么利用随机性要么利用实时性来实现—比如使用超时机制。然而，无论选举是否成功，安全性都可以保证。 <a class="footnote-reference" href="#id48" id="id22">[♥]</a><sup>译注</sup></p>
+<p>如果系统中有足够的组件(proposer，acceptors及通信网络)工作良好，通过选择一个特定的proposer，活性就可以达到。著名的FLP结论 <a class="footnote-reference" href="#id36" id="id22">[1]</a> 指出，一个可靠的proposer选举算法要么利用随机性要么利用实时性来实现—比如使用超时机制。然而，无论选举是否成功，安全性都可以保证。 <a class="footnote-reference" href="#id50" id="id23">[♦]</a><sup>译注</sup></p>
 </div>
-<div class="section" id="id23">
-<h3>2.5 实现<a class="headerlink" href="#id23" title="永久链接至标题">¶</a></h3>
-<p>Paxos算法 <a class="footnote-reference" href="#id39" id="id24">[5]</a> 假设了一组进程网络。在它的一致性算法中，每个进程扮演着proposer，acceptor及learner的角色，该算法选定一个leader来扮演那个特定的proposer和learner。Paxos一致性算法就是上面描述的那个，请求和响应都是以普通消息的方式发送(响应消息通过对应的提案的编号来标识以防止混淆)。使用可靠性的存储设备来存储acceptor需要记住的信息来防止出错。Acceptor在真正送出响应之前，会将它记录在可靠性存储设备中。</p>
+<div class="section" id="id24">
+<h3>2.5 实现<a class="headerlink" href="#id24" title="永久链接至标题">¶</a></h3>
+<p>Paxos算法 <a class="footnote-reference" href="#id40" id="id25">[5]</a> 假设了一组进程网络。在它的一致性算法中，每个进程扮演着proposer，acceptor及learner的角色，该算法选定一个leader来扮演那个特定的proposer和learner。Paxos一致性算法就是上面描述的那个，请求和响应都是以普通消息的方式发送(响应消息通过对应的提案的编号来标识以防止混淆)。使用可靠性的存储设备来存储acceptor需要记住的信息来防止出错。Acceptor在真正送出响应之前，会将它记录在可靠性存储设备中。</p>
 <p>剩下的就是需要描述保证提案编号唯一性的机制了。不同的proposers会从不相交的编号集合中选择自己的编号，这样任何两个proposers就不会有相同编号的提案了。每个proposer需要将它目前生成的最大编号的提案记录在可靠性存储设备中，然后用一个比已经使用的所有编号都大的提案开始phase1。</p>
 </div>
 </div>
-<div class="section" id="id25">
-<h2>3 实现状态机模型<a class="headerlink" href="#id25" title="永久链接至标题">¶</a></h2>
+<div class="section" id="id26">
+<h2>3 实现状态机模型<a class="headerlink" href="#id26" title="永久链接至标题">¶</a></h2>
 <p>实现分布式系统的一种简单方式就是，使用一组客户端集合然后向一个中央服务器发送命令。服务器可以看成是一个以某种顺序执行客户端命令的确定性状态机。该状态机有一个当前状态，通过输入一个命令来产生一个输出以及一个新的状态。比如一个分布式银行系统的客户端可能是一些出纳员，状态机状态由所有用户的账户余额组成。一个取款操作，通过执行一个减少账户余额的状态机命令(当且仅当余额大于等于取款数目时)实现，将新旧余额作为输出。</p>
 <p>使用中央服务器的系统在该服务器失败的情况下，整个系统就失败了。因此，我们使用一组服务器来代替它，每个服务器都独立了实现了该状态机。因为状态机是确定性的，如果它们都按照相同的命令序列执行，那么就会产生相同的状态机状态和输出。一个产生命令的客户端，就可以使用任意服务器为它产生的输出。</p>
 <p>为了保证所有的服务器都执行相同的状态机命令序列，我们需要实现一系列独立的Paxos一致性算法实例，第i个实例选定的值作为序列中的第i个状态机命令。在算法的每个实例中，每个服务器担任所有的角色(proposer,acceptor和learner)。现在，我们假设服务器集合是固定的，这样所有的一致性算法实例都具有相同的参与者集合。</p>
 <p>在正常执行中，一个服务器会被选为leader，它会在所有的一致性算法实例中被选作特定的proposer(唯一的提案提出者)。客户端向该leader发送命令，它来决定每个命令被安排在序列中的何处。如果leader决定某个客户端命令应该是第135个命令，它会尝试让该命令成为第135个一致性算法实例选定的value值。通常，这都会成功，但是由于出错或者另一个服务器也认为自己是leader，而它对第135个命令应该谁有异议。但是一致性算法可以保证，最多只有一个命令会被选定为第135个命令。</p>
 <p>这种策略的关键在于，在Paxos一致性算法中，被提出的value只有在phase2才会被选定。回忆下，在proposer的phase1完成时，要么提案的value已确定，要么proposer可以自由地提出一个值。</p>
 <p>现在我们已经知道在正常运行时，Paxos状态机实现是如何工作的。下面我们看下出错的情况，看下之前的leader失败以及新leader被选定后会发生什么。(系统启动是一种特殊情况，此时还没有命令被提出)。</p>
-<p>新的leader选出来后，首先要成为所有一致性算法执行实例的learner，需要知道目前已经选定的大部分命令。假设它知道命令1-134,138及139—也就是一致性算法实例1-134,138及139选定的值(稍后，我们会看下命令间的缺口是如何形成的)。然后，它需要执行135-137以及所有其他大于139的算法执行实例的phase1(下面会描述如何来做，即如何为这无限多个实例执行phase1)。假设执行结果表明，将要在执行实例135和140中被提出的提案值已经确定，但是其他执行实例的提案值是没有限制的 <a class="footnote-reference" href="#id49" id="id26">[♦]</a><sup>译注</sup> 。那么现在该leader就可以执行实例135和140的phase2，进而选定第135和140号命令。</p>
-<p>Leader以及其他所有已经获取该leader的已知命令的服务器，现在可以执行命令1-135。然而它还不能执行138-140，因为目前为止命令136和137还未选定。Leader可以将下两个到来的客户端请求命令作为命令136和137。但是我们也可以提起一个特殊的“noop”命令作为136和137号命令来填补这个空缺，(通过执行一致性算法实例136和137的phase2来完成) <a class="footnote-reference" href="#id50" id="id27">[♣]</a><sup>译注</sup> 。一旦该noop命令被选定，命令138-140就可以执行了。</p>
+<p>新的leader选出来后，首先要成为所有一致性算法执行实例的learner，需要知道目前已经选定的大部分命令。假设它知道命令1-134,138及139—也就是一致性算法实例1-134,138及139选定的值(稍后，我们会看下命令间的缺口是如何形成的)。然后，它需要执行135-137以及所有其他大于139的算法执行实例的phase1(下面会描述如何来做，即如何为这无限多个实例执行phase1)。假设执行结果表明，将要在执行实例135和140中被提出的提案值已经确定，但是其他执行实例的提案值是没有限制的 <a class="footnote-reference" href="#id51" id="id27">[♣]</a><sup>译注</sup> 。那么现在该leader就可以执行实例135和140的phase2，进而选定第135和140号命令。</p>
+<p>Leader以及其他所有已经获取该leader的已知命令的服务器，现在可以执行命令1-135。然而它还不能执行138-140，因为目前为止命令136和137还未选定。Leader可以将下两个到来的客户端请求命令作为命令136和137。但是我们也可以提起一个特殊的“noop”命令作为136和137号命令来填补这个空缺，(通过执行一致性算法实例136和137的phase2来完成) <a class="footnote-reference" href="#id52" id="id28">[**]</a><sup>译注</sup> 。一旦该noop命令被选定，命令138-140就可以执行了。</p>
 <p>命令1-140目前已被选定了。Leader也已经完成了所有大于140的一致性算法实例的phase1，而且在这些实例中，它可以自由的提出任何值。它将下一个客户端的请求命令作为第141个命令，并且在阶段2中将它作为一致性算法的第141个实例的value值。它会将下一个客户端的请求命令作为命令142，如此…</p>
 <p>Leader可以在它提出的命令141被选定前提出命令142。它发送的关于命令141的消息有可能全部丢失，因此在所有其他服务器在获知leader选定了谁作为命令141之前，命令142就可能已被选定。当leader无法收到实例141的phase2的期望响应之后，它会重传这些信息，但是仍然可能会失败，这样就在被选定的命令序列中，出现了缺口。假设一个leader可以提前确定a个命令，这意味着在i被选定之后，它就可以提出命令i+1到i+a的命令了。这样就可能形成一个长达a-1的命令缺口。</p>
-<p>一个新选择的leader需要为无数个一致性算法实例执行phase1—在上面的情景中，就是135-137以及所有大于139的执行实例。只要向其他的服务器发送一个合适的消息内容，就可以让所有的执行实例使用相同的提案编号。在phase1，只要一个acceptor已经收到来自某个proposer的phase2消息，那么它就可以为不止一个的执行实例做出承诺，因此一个服务器(作为acceptor角色时)通过选择一个适当的短消息就可以对所有实例做出响应，那么执行这样无限多个实例的phase1也就不会有问题 <a class="footnote-reference" href="#id51" id="id28">[**]</a><sup>译注</sup> 。 <a class="footnote-reference" href="#id52" id="id29">[††]</a><sup>译注</sup></p>
-<p>因为leader的失败和新leader的选举都是很少见的情况，因此执行一个状态机命令—即在命令值上达成一致性的花费就是执行该一致性算法的phase2的花费 <a class="footnote-reference" href="#id53" id="id30">[‡‡]</a><sup>译注</sup> 。可以证明，在允许失效的情况下，在所有的一致性算法中， paxos一致性算法的阶段2具有最小可能的 <strong>时间</strong> 复杂度 <a class="footnote-reference" href="#id36" id="id31">[2]</a> 。因此paxos算法基本就是最优的。</p>
+<p>一个新选择的leader需要为无数个一致性算法实例执行phase1—在上面的情景中，就是135-137以及所有大于139的执行实例。只要向其他的服务器发送一个合适的消息内容，就可以让所有的执行实例使用相同的提案编号。在phase1，只要一个acceptor已经收到来自某个proposer的phase2消息，那么它就可以为不止一个的执行实例做出承诺，因此一个服务器(作为acceptor角色时)通过选择一个适当的短消息就可以对所有实例做出响应，那么执行这样无限多个实例的phase1也就不会有问题 <a class="footnote-reference" href="#id53" id="id29">[††]</a><sup>译注</sup> 。 <a class="footnote-reference" href="#id54" id="id30">[‡‡]</a><sup>译注</sup></p>
+<p>因为leader的失败和新leader的选举都是很少见的情况，因此执行一个状态机命令—即在命令值上达成一致性的花费就是执行该一致性算法的phase2的花费 <a class="footnote-reference" href="#id55" id="id31">[§§]</a><sup>译注</sup> 。可以证明，在允许失效的情况下，在所有的一致性算法中， paxos一致性算法的阶段2具有最小可能的 <strong>时间</strong> 复杂度 <a class="footnote-reference" href="#id37" id="id32">[2]</a> 。因此paxos算法基本就是最优的。</p>
 <p>在该系统的正常执行情况下，我们假设总是只有一个leader，只有在当前leader失效及选举新leader的较短时期内才会违背这个假设。在特殊情况下，leader选举可能失败。如果没有服务器担任leader，那么就没有新命令被提出。如果同时有多个服务器认为自己是leader，它们在一个一致性算法执行实例中可能提出不同的value，这可能会导致无法选出一个value。但是，安全性一直都可以保证—即不可能会同时有两个命令被选定为第i个状态机命令。Leader的选举只是为了保证progress。</p>
-<p>如果服务器集合是变化的，那么必须有某种方式来决定哪些服务器来实现哪些一致性算法实例。最简单的方式就是通过状态机本身来完成。当前的服务器集合可以作为状态的一部分，同时可以通过某些状态机命令来改变。同时通过用执行完第i个状态机命令后的状态来描述执行一致性算法实例i+a的服务器集合，我们就能让leader在执行完第i个状态机命令后可以提前获取a个状态机命令 <a class="footnote-reference" href="#id54" id="id32">[§§]</a><sup>译注</sup> 。这就提供了一种支持任意复杂的重配置算法的简单实现。 <a class="footnote-reference" href="#id55" id="id33">[¶¶]</a><sup>译注</sup></p>
+<p>如果服务器集合是变化的，那么必须有某种方式来决定哪些服务器来实现哪些一致性算法实例。最简单的方式就是通过状态机本身来完成。当前的服务器集合可以作为状态的一部分，同时可以通过某些状态机命令来改变。同时通过用执行完第i个状态机命令后的状态来描述执行一致性算法实例i+a的服务器集合，我们就能让leader在执行完第i个状态机命令后可以提前获取a个状态机命令 <a class="footnote-reference" href="#id56" id="id33">[¶¶]</a><sup>译注</sup> 。这就提供了一种支持任意复杂的重配置算法的简单实现。 <a class="footnote-reference" href="#id57" id="id34">[##]</a><sup>译注</sup></p>
 </div>
-<div class="section" id="id34">
-<h2>参考文献<a class="headerlink" href="#id34" title="永久链接至标题">¶</a></h2>
-<table class="docutils footnote" frame="void" id="id35" rules="none">
-<colgroup><col class="label" /><col /></colgroup>
-<tbody valign="top">
-<tr><td class="label"><a class="fn-backref" href="#id21">[1]</a></td><td>Michael J. Fischer, Nancy Lynch, and Michael S. Paterson. Impossibility of distributed consensus with one faulty process. Journal of the ACM, 32(2):374–382, April 1985.</td></tr>
-</tbody>
-</table>
+<div class="section" id="id35">
+<h2>参考文献<a class="headerlink" href="#id35" title="永久链接至标题">¶</a></h2>
 <table class="docutils footnote" frame="void" id="id36" rules="none">
 <colgroup><col class="label" /><col /></colgroup>
 <tbody valign="top">
-<tr><td class="label"><a class="fn-backref" href="#id31">[2]</a></td><td>Idit Keidar and Sergio Rajsbaum. On the cost of fault-tolerant consensus when there are no faults—a tutorial. TechnicalReport MIT-LCS-TR-821, Laboratory for Computer Science, Massachusetts Institute Technology, Cambridge, MA, 02139, May 2001. also published in SIGACT News 32(2) (June 2001).</td></tr>
+<tr><td class="label"><a class="fn-backref" href="#id22">[1]</a></td><td>Michael J. Fischer, Nancy Lynch, and Michael S. Paterson. Impossibility of distributed consensus with one faulty process. Journal of the ACM, 32(2):374–382, April 1985.</td></tr>
 </tbody>
 </table>
 <table class="docutils footnote" frame="void" id="id37" rules="none">
 <colgroup><col class="label" /><col /></colgroup>
 <tbody valign="top">
-<tr><td class="label"><a class="fn-backref" href="#id13">[3]</a></td><td>Leslie Lamport. The implementation of reliable distributed multiprocess systems. Computer Networks, 2:95–114, 1978.</td></tr>
+<tr><td class="label"><a class="fn-backref" href="#id32">[2]</a></td><td>Idit Keidar and Sergio Rajsbaum. On the cost of fault-tolerant consensus when there are no faults—a tutorial. TechnicalReport MIT-LCS-TR-821, Laboratory for Computer Science, Massachusetts Institute Technology, Cambridge, MA, 02139, May 2001. also published in SIGACT News 32(2) (June 2001).</td></tr>
 </tbody>
 </table>
 <table class="docutils footnote" frame="void" id="id38" rules="none">
 <colgroup><col class="label" /><col /></colgroup>
 <tbody valign="top">
-<tr><td class="label"><a class="fn-backref" href="#id7">[4]</a></td><td>Leslie Lamport. Time, clocks, and the ordering of events in a distributed system. Communications of the ACM, 21(7):558–565, July 1978.</td></tr>
+<tr><td class="label"><a class="fn-backref" href="#id14">[3]</a></td><td>Leslie Lamport. The implementation of reliable distributed multiprocess systems. Computer Networks, 2:95–114, 1978.</td></tr>
 </tbody>
 </table>
 <table class="docutils footnote" frame="void" id="id39" rules="none">
 <colgroup><col class="label" /><col /></colgroup>
 <tbody valign="top">
-<tr><td class="label">[5]</td><td><em>(<a class="fn-backref" href="#id2">1</a>, <a class="fn-backref" href="#id5">2</a>, <a class="fn-backref" href="#id6">3</a>, <a class="fn-backref" href="#id24">4</a>)</em> Leslie Lamport. The part-time parliament. ACM Transactions on Computer Systems, 16(2):133–169, May 1998.</td></tr>
+<tr><td class="label"><a class="fn-backref" href="#id8">[4]</a></td><td>Leslie Lamport. Time, clocks, and the ordering of events in a distributed system. Communications of the ACM, 21(7):558–565, July 1978.</td></tr>
+</tbody>
+</table>
+<table class="docutils footnote" frame="void" id="id40" rules="none">
+<colgroup><col class="label" /><col /></colgroup>
+<tbody valign="top">
+<tr><td class="label">[5]</td><td><em>(<a class="fn-backref" href="#id2">1</a>, <a class="fn-backref" href="#id6">2</a>, <a class="fn-backref" href="#id7">3</a>, <a class="fn-backref" href="#id25">4</a>)</em> Leslie Lamport. The part-time parliament. ACM Transactions on Computer Systems, 16(2):133–169, May 1998.</td></tr>
 </tbody>
 </table>
 </div>
-<div class="section" id="id40">
-<h2>注释<a class="headerlink" href="#id40" title="永久链接至标题">¶</a></h2>
-<table class="docutils footnote" frame="void" id="id41" rules="none">
-<colgroup><col class="label" /><col /></colgroup>
-<tbody valign="top">
-<tr><td class="label"><a class="fn-backref" href="#id10">[*]</a></td><td>译注。一个分布式算法，有两个最重要的属性：safety 和livness，简单来说safety就是指那些需要保证永远都不会发生的事情，livness是指那些最终一定会发生的事情。</td></tr>
-</tbody>
-</table>
+<div class="section" id="id41">
+<h2>注释<a class="headerlink" href="#id41" title="永久链接至标题">¶</a></h2>
 <table class="docutils footnote" frame="void" id="id42" rules="none">
 <colgroup><col class="label" /><col /></colgroup>
 <tbody valign="top">
-<tr><td class="label"><a class="fn-backref" href="#id11">[†]</a></td><td>译注。即其内容不会被篡改，不会发生拜占庭式的问题。</td></tr>
+<tr><td class="label"><a class="fn-backref" href="#id4">[*]</a></td><td>译注。此句留原文，你可以感受一下，Lamport表现得非常自负。</td></tr>
 </tbody>
 </table>
 <table class="docutils footnote" frame="void" id="id43" rules="none">
 <colgroup><col class="label" /><col /></colgroup>
 <tbody valign="top">
-<tr><td class="label"><a class="fn-backref" href="#id14">[‡]</a></td><td>译注。比如有5个acceptor，其中2个通过了提案a，另外3个通过了提案b，此时如果通过b的3个中有一个出错了，那么a,b的通过者都变成了2个，这不清楚该如何决定了。</td></tr>
+<tr><td class="label"><a class="fn-backref" href="#id11">[†]</a></td><td>译注。一个分布式算法，有两个最重要的属性：safety 和livness，简单来说safety就是指那些需要保证永远都不会发生的事情，livness是指那些最终一定会发生的事情。</td></tr>
 </tbody>
 </table>
 <table class="docutils footnote" frame="void" id="id44" rules="none">
 <colgroup><col class="label" /><col /></colgroup>
 <tbody valign="top">
-<tr><td class="label"><a class="fn-backref" href="#id15">[§]</a></td><td>译注。此时的提案已经跟value变成了不同的东西，提案是由编号+value组成的。</td></tr>
+<tr><td class="label"><a class="fn-backref" href="#id12">[‡]</a></td><td>译注。即其内容不会被篡改，不会发生拜占庭式的问题。</td></tr>
 </tbody>
 </table>
 <table class="docutils footnote" frame="void" id="id45" rules="none">
 <colgroup><col class="label" /><col /></colgroup>
 <tbody valign="top">
-<tr><td class="label"><a class="fn-backref" href="#id16">[¶]</a></td><td><p class="first">译注。可以看到上面是对一系列条件的逐步加强，如果需要证明它们可以保证一致性，则需要反过来， <cite>P2</cite><sup>c</sup> =&gt; <cite>P2</cite><sup>b</sup> =&gt; <cite>P2</cite><sup>a</sup> =&gt; <cite>P2</cite> ， <cite>P2</cite> + <cite>P1</cite> =&gt; 保证了一致性。</p>
+<tr><td class="label"><a class="fn-backref" href="#id15">[§]</a></td><td>译注。比如有5个acceptor，其中2个通过了提案a，另外3个通过了提案b，此时如果通过b的3个中有一个出错了，那么a,b的通过者都变成了2个，这不清楚该如何决定了。</td></tr>
+</tbody>
+</table>
+<table class="docutils footnote" frame="void" id="id46" rules="none">
+<colgroup><col class="label" /><col /></colgroup>
+<tbody valign="top">
+<tr><td class="label"><a class="fn-backref" href="#id16">[¶]</a></td><td>译注。此时的提案已经跟value变成了不同的东西，提案是由编号+value组成的。</td></tr>
+</tbody>
+</table>
+<table class="docutils footnote" frame="void" id="id47" rules="none">
+<colgroup><col class="label" /><col /></colgroup>
+<tbody valign="top">
+<tr><td class="label"><a class="fn-backref" href="#id17">[#]</a></td><td><p class="first">译注。可以看到上面是对一系列条件的逐步加强，如果需要证明它们可以保证一致性，则需要反过来， <cite>P2</cite><sup>c</sup> =&gt; <cite>P2</cite><sup>b</sup> =&gt; <cite>P2</cite><sup>a</sup> =&gt; <cite>P2</cite> ， <cite>P2</cite> + <cite>P1</cite> =&gt; 保证了一致性。</p>
 <p>我们再看 <cite>P2</cite><sup>c</sup> ，实际上 <cite>P2</cite><sup>c</sup> 规定了每个Proposer 如何产生一个提案，对于产生的每个提案(n,v)需要满足这个条件“存在一个由超过半数的Acceptor 组成的集合S：要么S中没有人批准(accept)过编号小于 n 的任何提案，要么S的任何acceptor批准的所有议案（编号小于n）中，v是编号最大的议案的决议”。当Proposer遵守这个规则产生提案时，就可以保证满足P2b。论文中，作者是从如何产生提案进而可以保证P2b来思考，才得到P2c的。下面我们反过来看，证明P2c可以保证P2b。如论文中一样，采用数学归纳法证明。</p>
 <p>首先假设提案(m,v)被选定了，设比该提案编号大的提案为(n,v’),我们需要证明的就是在P2c的前提下，对于所有的(n,v’)，有v’=v。</p>
 <ol class="arabic simple">
@@ -297,48 +303,48 @@
 </td></tr>
 </tbody>
 </table>
-<table class="docutils footnote" frame="void" id="id46" rules="none">
-<colgroup><col class="label" /><col /></colgroup>
-<tbody valign="top">
-<tr><td class="label"><a class="fn-backref" href="#id17">[#]</a></td><td>译注。 !? 此处隐含了一个结论，最大编号的提案肯定是小于n的。</td></tr>
-</tbody>
-</table>
-<table class="docutils footnote" frame="void" id="id47" rules="none">
-<colgroup><col class="label" /><col /></colgroup>
-<tbody valign="top">
-<tr><td class="label"><a class="fn-backref" href="#id19">[♠]</a></td><td><p class="first">译注。上面这段的意思是，acceptor发送给learners的关于提案通过的相关信息可能会丢失，这样learns就无法知道是否有value被选定，此时呢它可以主动去询问acceptors，但是此时如果被通过的提案刚好是由n/2+1个acceptor通过了，万一其中一个acceptor出现问题，那么它无法确定被选定的提案，为了确定被选定的value，必须重新发起一次新的提案。</p>
-<p class="last">但是这引出一种需要考虑的异常情况，当一个值被半数+1的acceptor选定后，但是其中一个acceptor出错而死掉了，那么对于这种情况，paxos算法能否正确处理呢？因为这种情况下，某个learner可能会在这个acceptor还活着的时候获知这个选定的value，但是其他learner获取信息时该acceptor可能已经死掉了。对于这种情况虽然learner可能一时无法判断哪个value被选定了，但是它可以保证此时被选定的value，将一直是被选定的那个value，因为如果acceptor出错死掉了，但这并不影响保证多数集之间肯定存在一个交，因为该出错的acceptor对于两个多数集来说，它们都是死掉的那个，根据算法执行过程，我们可以看到多数集都是通过接受响应来体现的，也就是说它们肯定都是还活着的acceptor，这样不同执行过程中的phase2的多数集之间肯定存在一个还活着的公共acceptor。如果一个死掉的acceptor巧合是两个(n/2+1)多数集唯一的公共元素，那么它应该是无法满足收到多数集的acceptor的响应的。</p>
-</td></tr>
-</tbody>
-</table>
 <table class="docutils footnote" frame="void" id="id48" rules="none">
 <colgroup><col class="label" /><col /></colgroup>
 <tbody valign="top">
-<tr><td class="label"><a class="fn-backref" href="#id22">[♥]</a></td><td>译注。即使同时有2个或以上的proposers存在，算法仍然可以保证正确性。</td></tr>
+<tr><td class="label"><a class="fn-backref" href="#id18">[♠]</a></td><td>译注。 !? 此处隐含了一个结论，最大编号的提案肯定是小于n的。</td></tr>
 </tbody>
 </table>
 <table class="docutils footnote" frame="void" id="id49" rules="none">
 <colgroup><col class="label" /><col /></colgroup>
 <tbody valign="top">
-<tr><td class="label"><a class="fn-backref" href="#id26">[♦]</a></td><td>译注。根据前面所述经过phase1，要么提案value值已确定，要么proposer可以自由提出一个值，那么此处即指135和140的提案value已确定，而其他的则可选任意值，所以下面才能为136和137选一个新来的命令或者是那个特殊的noop命令。</td></tr>
+<tr><td class="label"><a class="fn-backref" href="#id20">[♥]</a></td><td><p class="first">译注。上面这段的意思是，acceptor发送给learners的关于提案通过的相关信息可能会丢失，这样learns就无法知道是否有value被选定，此时呢它可以主动去询问acceptors，但是此时如果被通过的提案刚好是由n/2+1个acceptor通过了，万一其中一个acceptor出现问题，那么它无法确定被选定的提案，为了确定被选定的value，必须重新发起一次新的提案。</p>
+<p class="last">但是这引出一种需要考虑的异常情况，当一个值被半数+1的acceptor选定后，但是其中一个acceptor出错而死掉了，那么对于这种情况，paxos算法能否正确处理呢？因为这种情况下，某个learner可能会在这个acceptor还活着的时候获知这个选定的value，但是其他learner获取信息时该acceptor可能已经死掉了。对于这种情况虽然learner可能一时无法判断哪个value被选定了，但是它可以保证此时被选定的value，将一直是被选定的那个value，因为如果acceptor出错死掉了，但这并不影响保证多数集之间肯定存在一个交，因为该出错的acceptor对于两个多数集来说，它们都是死掉的那个，根据算法执行过程，我们可以看到多数集都是通过接受响应来体现的，也就是说它们肯定都是还活着的acceptor，这样不同执行过程中的phase2的多数集之间肯定存在一个还活着的公共acceptor。如果一个死掉的acceptor巧合是两个(n/2+1)多数集唯一的公共元素，那么它应该是无法满足收到多数集的acceptor的响应的。</p>
+</td></tr>
 </tbody>
 </table>
 <table class="docutils footnote" frame="void" id="id50" rules="none">
 <colgroup><col class="label" /><col /></colgroup>
 <tbody valign="top">
-<tr><td class="label"><a class="fn-backref" href="#id27">[♣]</a></td><td>译注。? 通过前面我们已经知道换了新leader后，leader已经执行了它们的phase1，这样就可以直接执行phase2，同时phase1的执行结果表明136和137的value值可以任意选择。此处，noop命令不会改变状态机状态，实际上是个虚命令，使用它的意义在于因为命令139和140都确定好了，直接选择一个noop就可以避免额外的命令查找或者等待，就可以尽快填补空缺，从而让139和140尽快执行，降低命令执行的等待时间。</td></tr>
+<tr><td class="label"><a class="fn-backref" href="#id23">[♦]</a></td><td>译注。即使同时有2个或以上的proposers存在，算法仍然可以保证正确性。</td></tr>
 </tbody>
 </table>
 <table class="docutils footnote" frame="void" id="id51" rules="none">
 <colgroup><col class="label" /><col /></colgroup>
 <tbody valign="top">
-<tr><td class="label"><a class="fn-backref" href="#id28">[**]</a></td><td>译注。? 因为执行实例使用的都是相同的编号，这样它承诺不再通过小于n的提案，应该可以应用在所有执行实例上，而不影响正确性。(在上面的场景中，就是针对135和140的情况)。</td></tr>
+<tr><td class="label"><a class="fn-backref" href="#id27">[♣]</a></td><td>译注。根据前面所述经过phase1，要么提案value值已确定，要么proposer可以自由提出一个值，那么此处即指135和140的提案value已确定，而其他的则可选任意值，所以下面才能为136和137选一个新来的命令或者是那个特殊的noop命令。</td></tr>
 </tbody>
 </table>
 <table class="docutils footnote" frame="void" id="id52" rules="none">
 <colgroup><col class="label" /><col /></colgroup>
 <tbody valign="top">
-<tr><td class="label"><a class="fn-backref" href="#id29">[††]</a></td><td><p class="first">译注。此处应该可以算是对于多个paxos执行实例同时运行的情况的优化，内容类似于Wiki中提到的 <a class="reference external" href="http://en.wikipedia.org/wiki/Paxos_(computer_science)#Multi-Paxos">Multi-Paxos</a> 模式。根据wiki上的描述，如果leader是相对稳定的，那么phase1可能就是不必要的了，那么对于同一个leader未来会参与的那些执行实例，是可以直接跳过phase1的。但是，需要在每个value值中加上执行实例的编号。</p>
+<tr><td class="label"><a class="fn-backref" href="#id28">[**]</a></td><td>译注。? 通过前面我们已经知道换了新leader后，leader已经执行了它们的phase1，这样就可以直接执行phase2，同时phase1的执行结果表明136和137的value值可以任意选择。此处，noop命令不会改变状态机状态，实际上是个虚命令，使用它的意义在于因为命令139和140都确定好了，直接选择一个noop就可以避免额外的命令查找或者等待，就可以尽快填补空缺，从而让139和140尽快执行，降低命令执行的等待时间。</td></tr>
+</tbody>
+</table>
+<table class="docutils footnote" frame="void" id="id53" rules="none">
+<colgroup><col class="label" /><col /></colgroup>
+<tbody valign="top">
+<tr><td class="label"><a class="fn-backref" href="#id29">[††]</a></td><td>译注。? 因为执行实例使用的都是相同的编号，这样它承诺不再通过小于n的提案，应该可以应用在所有执行实例上，而不影响正确性。(在上面的场景中，就是针对135和140的情况)。</td></tr>
+</tbody>
+</table>
+<table class="docutils footnote" frame="void" id="id54" rules="none">
+<colgroup><col class="label" /><col /></colgroup>
+<tbody valign="top">
+<tr><td class="label"><a class="fn-backref" href="#id30">[‡‡]</a></td><td><p class="first">译注。此处应该可以算是对于多个paxos执行实例同时运行的情况的优化，内容类似于Wiki中提到的 <a class="reference external" href="http://en.wikipedia.org/wiki/Paxos_(computer_science)#Multi-Paxos">Multi-Paxos</a> 模式。根据wiki上的描述，如果leader是相对稳定的，那么phase1可能就是不必要的了，那么对于同一个leader未来会参与的那些执行实例，是可以直接跳过phase1的。但是，需要在每个value值中加上执行实例的编号。</p>
 <p>该模式执行过程如下(图中一个竖线应该认为是一个参与者，比如acceptor下有三个竖线，代表由三个acceptor)。从图中可以看出，只有第一个执行执行了prepare过程，而在leader进入稳定状态后，后续的执行实例直接进入了阶段2，同时执行实例的编号(即图中的I)被加入到了消息中：</p>
 <p>Message flow: Multi-Paxos, start</p>
 <p>(first instance with new leader)</p>
@@ -367,22 +373,22 @@
 </td></tr>
 </tbody>
 </table>
-<table class="docutils footnote" frame="void" id="id53" rules="none">
-<colgroup><col class="label" /><col /></colgroup>
-<tbody valign="top">
-<tr><td class="label"><a class="fn-backref" href="#id30">[‡‡]</a></td><td>译注。? 那阶段1呢</td></tr>
-</tbody>
-</table>
-<table class="docutils footnote" frame="void" id="id54" rules="none">
-<colgroup><col class="label" /><col /></colgroup>
-<tbody valign="top">
-<tr><td class="label"><a class="fn-backref" href="#id32">[§§]</a></td><td>译注。即在服务器集合可变的情况下，也能预取命令，就需要我们能知道确定该命令的一致性算法执行实例对应的服务器集合，这里提供了一个简单的服务器集合决定方式，也就是说我们既然将服务器集合作为状态机状态的一部分，那么我们就将在执行完第i个状态机命令后标识的服务器集合，作为一致性算法执行实例i+a的服务器集合。比如我们把第0个状态机命令执行后的服务器集合，作为实现第i个的一致性算法实例的服务器集合，第1个 状态机命令执行后的服务器集合，作为实现第i+1个的一致性算法实例的服务器集合，依次类推。</td></tr>
-</tbody>
-</table>
 <table class="docutils footnote" frame="void" id="id55" rules="none">
 <colgroup><col class="label" /><col /></colgroup>
 <tbody valign="top">
-<tr><td class="label"><a class="fn-backref" href="#id33">[¶¶]</a></td><td>译注。实际上呢这就允许我们通过发送一个改变服务器集合的命令来动态的改变执行第n个一致性算法的服务器集合，也就是实现了动态重配置的目的。因为该命令会改变直接服务器集合，那么就能影响到后续的执行实例。</td></tr>
+<tr><td class="label"><a class="fn-backref" href="#id31">[§§]</a></td><td>译注。? 那阶段1呢</td></tr>
+</tbody>
+</table>
+<table class="docutils footnote" frame="void" id="id56" rules="none">
+<colgroup><col class="label" /><col /></colgroup>
+<tbody valign="top">
+<tr><td class="label"><a class="fn-backref" href="#id33">[¶¶]</a></td><td>译注。即在服务器集合可变的情况下，也能预取命令，就需要我们能知道确定该命令的一致性算法执行实例对应的服务器集合，这里提供了一个简单的服务器集合决定方式，也就是说我们既然将服务器集合作为状态机状态的一部分，那么我们就将在执行完第i个状态机命令后标识的服务器集合，作为一致性算法执行实例i+a的服务器集合。比如我们把第0个状态机命令执行后的服务器集合，作为实现第i个的一致性算法实例的服务器集合，第1个 状态机命令执行后的服务器集合，作为实现第i+1个的一致性算法实例的服务器集合，依次类推。</td></tr>
+</tbody>
+</table>
+<table class="docutils footnote" frame="void" id="id57" rules="none">
+<colgroup><col class="label" /><col /></colgroup>
+<tbody valign="top">
+<tr><td class="label"><a class="fn-backref" href="#id34">[##]</a></td><td>译注。实际上呢这就允许我们通过发送一个改变服务器集合的命令来动态的改变执行第n个一致性算法的服务器集合，也就是实现了动态重配置的目的。因为该命令会改变直接服务器集合，那么就能影响到后续的执行实例。</td></tr>
 </tbody>
 </table>
 </div>
@@ -399,18 +405,18 @@
 <li><a class="reference internal" href="#">【译】Paxos Made Simple</a><ul>
 <li><a class="reference internal" href="#id1">译序</a></li>
 <li><a class="reference internal" href="#id3">摘要</a></li>
-<li><a class="reference internal" href="#id4">1 导引</a></li>
-<li><a class="reference internal" href="#id8">2 一致性算法</a><ul>
-<li><a class="reference internal" href="#id9">2.1 问题描述</a></li>
-<li><a class="reference internal" href="#id12">2.2 提案的选定</a></li>
-<li><a class="reference internal" href="#id18">2.3 获取被选定的提案值</a></li>
-<li><a class="reference internal" href="#id20">2.4 进展性</a></li>
-<li><a class="reference internal" href="#id23">2.5 实现</a></li>
+<li><a class="reference internal" href="#id5">1 导引</a></li>
+<li><a class="reference internal" href="#id9">2 一致性算法</a><ul>
+<li><a class="reference internal" href="#id10">2.1 问题描述</a></li>
+<li><a class="reference internal" href="#id13">2.2 提案的选定</a></li>
+<li><a class="reference internal" href="#id19">2.3 获取被选定的提案值</a></li>
+<li><a class="reference internal" href="#id21">2.4 进展性</a></li>
+<li><a class="reference internal" href="#id24">2.5 实现</a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#id25">3 实现状态机模型</a></li>
-<li><a class="reference internal" href="#id34">参考文献</a></li>
-<li><a class="reference internal" href="#id40">注释</a></li>
+<li><a class="reference internal" href="#id26">3 实现状态机模型</a></li>
+<li><a class="reference internal" href="#id35">参考文献</a></li>
+<li><a class="reference internal" href="#id41">注释</a></li>
 </ul>
 </li>
 </ul>
