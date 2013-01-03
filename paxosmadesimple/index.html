@@ -26,8 +26,9 @@
     <script type="text/javascript" src="../_static/underscore.js"></script>
     <script type="text/javascript" src="../_static/doctools.js"></script>
     <script type="text/javascript" src="../_static/translations.js"></script>
+    <link rel="shortcut icon" href="../_static/favicon.ico"/>
     <link rel="top" title="distributed system documents(dsdoc) v0.0.1-alpha" href="../index.html" />
-    <link rel="next" title="【译】PaxosLease：实现租约的无盘Paxos算法" href="../paxoslease/index.html" />
+    <link rel="next" title="【译】Paxos Made Moderately Complex" href="../paxosmademoderatelycomplex/index.html" />
     <link rel="prev" title="分布式系统文档" href="../index.html" /> 
   </head>
   <body>
@@ -38,7 +39,7 @@
           <a href="../genindex.html" title="总目录"
              accesskey="I">索引</a></li>
         <li class="right" >
-          <a href="../paxoslease/index.html" title="【译】PaxosLease：实现租约的无盘Paxos算法"
+          <a href="../paxosmademoderatelycomplex/index.html" title="【译】Paxos Made Moderately Complex"
              accesskey="N">下一页</a> |</li>
         <li class="right" >
           <a href="../index.html" title="分布式系统文档"
@@ -48,10 +49,10 @@
     </div>  
 
     <div class="document">
-      <div class="documentwrapper">
-        <div class="bodywrapper">
-          <div class="body">
-            
+    <div class="documentwrapper">
+      <div class="bodywrapper">
+        <div class="body">
+          
   <div class="section" id="paxos-made-simple">
 <span id="id1"></span><h1>【译】Paxos Made Simple<a class="headerlink" href="#paxos-made-simple" title="永久链接至标题">¶</a></h1>
 <table class="docutils field-list" frame="void" rules="none">
@@ -80,25 +81,26 @@
 </tr>
 </tbody>
 </table>
-<p>Leslie Lamport, 2001/11/01</p>
-<div class="section" id="translation-preface">
-<span id="id2"></span><h2>译序<a class="headerlink" href="#translation-preface" title="永久链接至标题">¶</a></h2>
+<p>Leslie Lamport</p>
+<p>2001/11/01</p>
+<div class="section" id="paxos-simple-translation-preface">
+<span id="id2"></span><h2>译序<a class="headerlink" href="#paxos-simple-translation-preface" title="永久链接至标题">¶</a></h2>
 <p>“在PODC2001会议上，我总是听到人们在抱怨Paxos算法是那么的难以理解。人们总是被那些古希腊的名称弄得晕头转向，而使得他们觉得论文难以理解，实际上算法本身是很简单的。于是在会议期间我就找了几个人聚在一起，试着直接向他们口头解释该算法。回家之后，我将这些内容整理了下来，后来又基于Fred Schneider和Butler Lampson的建议做了修改。就形成了现在的这个版本，虽然已经有13页长了，但是其中仍未包含任何一个比 <cite>n</cite><sub>1</sub> <cite>&gt; n</cite><sub>2</sub> 更复杂的公式。”</p>
 <p>上面这段摘自Lamport的my writings，my writings是Lamport本人对自己以往发表的论文的一些总结，其中很多文字涉及到这些论文的创作来源。可以看出该论文的产生经历，与拜占庭将军问题有着截然相反的历程，在发表The Byzantine General Problem的时候，作者是用拜占庭将军这一场景引入到原来的算法中，而Paxos则是作者最初就是用古希腊的故事情节来描述，我想当时作者之所以采用一个故事性的背景，也是因为拜占庭将军这一写作方法带来的成功而受到的影响。只是事与愿违，人们觉得那篇《The Part-Time Parliament》 <a class="footnote-reference" href="#id42" id="id3">[5]</a> 太难理解了，而且通篇没有数学化的公式证明。</p>
 <p>根据Lamport的说法，当时的三个审稿人认为这篇文章虽然重要性不够但还有点意思，只是还应该把所有有关Paxos(Lamport在论文中虚构出的一个岛屿的名称)这一描述的地方全部删掉，但是Lamport觉得这些人太没幽默感了，也就没有按照他们要求的去做。以至于作者虽然在1990年就将它提交给了TOCS，但直到1998年才被发表。但是发表之后，很多人还是觉得原来那篇太难理解了，于是才产生了这一篇。不过现在回头再看，虽然当时Lamport的写作方式令文章被埋没了数年，但是也正因此才产生了如此有趣的一则轶闻，Paxos也成为该算法无可争议的名称，虽然另一篇文章《Viewstamped Replication: A New Primary Copy Method to Support Highly-Available Distributed Systems》在1988年就独立地提出了类Paxos的一致性算法。</p>
 </div>
-<div class="section" id="abstract">
-<span id="id4"></span><h2>摘要<a class="headerlink" href="#abstract" title="永久链接至标题">¶</a></h2>
+<div class="section" id="paxos-abstract">
+<span id="id4"></span><h2>摘要<a class="headerlink" href="#paxos-abstract" title="永久链接至标题">¶</a></h2>
 <p>The Paxos algorithm, when presented in plain English, is very simple. <a class="footnote-reference" href="#id44" id="id5">[*]</a><sup>译注</sup></p>
 </div>
-<div class="section" id="introduction">
-<span id="id6"></span><h2>1 导引<a class="headerlink" href="#introduction" title="永久链接至标题">¶</a></h2>
+<div class="section" id="paxos-introduction">
+<span id="id6"></span><h2>1 导引<a class="headerlink" href="#paxos-introduction" title="永久链接至标题">¶</a></h2>
 <p>用于实现容错的分布式系统的Paxos算法，一直以来总是被认为很难理解，或许是因为对很多人来说，并不习惯以希腊故事展开的论文形式 <a class="footnote-reference" href="#id42" id="id7">[5]</a> 。事实上，它应该是众多分布式算法中最简单易见的一个了。它的核心就是一个一致性算法——论文 <a class="footnote-reference" href="#id42" id="id8">[5]</a> 中的“synod”算法。从下一个章节可以看出，它基本上就是根据一个一致性算法所必需满足的条件而顺理成章的呈现出来的。最后一个章节，我们还会通过将Paxos算法作为一个使用状态机的分布式系统构建模式中的一致性实现部分，来完整的描述它。这种使用状态机的方法来构建分布式系统最初是由论文 <a class="footnote-reference" href="#id41" id="id9">[4]</a> 引入的，早已为人所熟知，而这篇论文估计也已经是分布式系统理论研究领域被引用地最广泛的了。</p>
 </div>
-<div class="section" id="algorithm">
-<span id="id10"></span><h2>2 一致性算法<a class="headerlink" href="#algorithm" title="永久链接至标题">¶</a></h2>
-<div class="section" id="problem">
-<span id="id11"></span><h3>2.1 问题描述<a class="headerlink" href="#problem" title="永久链接至标题">¶</a></h3>
+<div class="section" id="paxos-algorithm">
+<span id="id10"></span><h2>2 一致性算法<a class="headerlink" href="#paxos-algorithm" title="永久链接至标题">¶</a></h2>
+<div class="section" id="paxos-problem">
+<span id="id11"></span><h3>2.1 问题描述<a class="headerlink" href="#paxos-problem" title="永久链接至标题">¶</a></h3>
 <p>假设有一组可以提出提案的进程集合。一个一致性算法需要保证：在这些被提出的提案中，只有一个会被选定；如果，没有提案被提出，那么就不会有被选定的提案；当一个提案被选定后，进程应该可以获取被选定的提案信息。</p>
 <p>对于一致性来说，安全性(Safety)需求就是这样的：</p>
 <ul class="simple">
@@ -114,8 +116,8 @@
 <li>消息在传输中可能花费任意的时间，可能会重复，丢失，但是不会被损坏。 <a class="footnote-reference" href="#id46" id="id13">[‡]</a><sup>译注</sup></li>
 </ul>
 </div>
-<div class="section" id="choosing">
-<span id="id14"></span><h3>2.2 提案的选定<a class="headerlink" href="#choosing" title="永久链接至标题">¶</a></h3>
+<div class="section" id="paxos-choosing">
+<span id="id14"></span><h3>2.2 提案的选定<a class="headerlink" href="#paxos-choosing" title="永久链接至标题">¶</a></h3>
 <p>选定提案的最简单方式就是只允许一个accpetor存在。Proposer发送提案给accpetor，Acceptor会选择它接收到的第一个提案作为被选定的提案。尽管简单，但是这个解决方式却很难让人满意，因为如果accpetor出错，那么整个系统就无法工作了。</p>
 <p>因此，应该选择其他的方式。比如我们用多个accpetor来避免一个accpetor时的单点问题。现在，Proposer向一个Acceptor集合发送提案，某个Acceptor可能会通过(accept)这个提案。当有足够多的Acceptor通过(accept)它的时候，我们就可以认为这个提案被选定了。什么是足够多呢？为了能确保只有一个提案被选定，我们可以让这个集合大的可以包含Acceptor集合中的多数成员。因为任何两个多数集至少有一个公共成员，如果我们再规定一个Acceptor最多只能通过一个提案，那么就能保证只有一个提案被选定(这是对于很多论文都研究过的majority的一个简单的应用 <a class="footnote-reference" href="#id40" id="id15">[3]</a> )。</p>
 <p>在没有失败和消息丢失的情况下，如果我们希望即使在只有一个提案被提出的情况下，仍然可以选出一个提案来，这就暗示了如下这个需求：</p>
@@ -185,27 +187,27 @@
 </div></blockquote>
 <p>一个Proposer可能或产生多个提案，只要它是遵循如上的算法即可。它可以在任意时刻丢弃某个提案。(即使针对该提案的请求和响应在提案被丢弃很久后才到达，正确性依然可以保证)。如果某个Proposer已经在试图生成编号更大的提案，那么丢弃未尝不是一个好的选择。因此如果一个Acceptor因为已经收到更大编号的prepare请求而忽略某个prepare或者accept请求时，那么它也应当通知它的Proposer，然后该Proposer应该丢弃该提案。当然，这只是一个不影响正确性的性能优化。</p>
 </div>
-<div class="section" id="learning">
-<span id="id20"></span><h3>2.3 获取被选定的提案值<a class="headerlink" href="#learning" title="永久链接至标题">¶</a></h3>
+<div class="section" id="paxos-learning">
+<span id="id20"></span><h3>2.3 获取被选定的提案值<a class="headerlink" href="#paxos-learning" title="永久链接至标题">¶</a></h3>
 <p>为了获取被选定的值，一个Learner必须确定一个提案已经被半数以上的Acceptor通过。最明显的算法是，让每个Acceptor，只要它通过了一个提案，就通知所有的Learners，将它通过的提案告知它们。这可以让Learners尽快的找出被选定的值，但是它需要每个Acceptor都要与每个Learner通信—所需通信的次数等于二者个数的乘积。</p>
 <p>在假定非拜占庭错误的情况下，一个Learner可以很容易地通过另一个Learner了解到一个值已经被选定。我们可以让所有的Acceptor将它们的通过信息发送给一个特定的Learner，当一个value被选定时，再由它通知其他的Learners。这种方法，需要多一个步骤才能通知到所有的Learners。而且也是不可靠的，因为那个特定的Learner可能会失败。但是这种情况下的通信次数，只是Acceptors和Learners的个数的和。</p>
 <p>更一般的，Acceptors可以将它们的通过信息发送给一个特定的Learners集合，它们中的每个都可以在一个value被选定后通知所有的Learners。这个集合中的Learners个数越多，可靠性就越好，但是通信复杂度就越高。</p>
 <p>由于消息的丢失，一个value被选定后，可能没有Learners会发现。Learner可以询问Acceptors它们通过了哪些提案，但是一个Acceptor出错，都有可能导致无法判断出是否已经有半数以上的Acceptors通过的提案。在这种情况下，只有当一个新的提案被选定时，Learners才能发现被选定的value。因此如果一个Learner想知道是否已经选定一个value，它可以让Proposer利用上面的算法产生一个提案。 <a class="footnote-reference" href="#id51" id="id21">[♥]</a><sup>译注</sup></p>
 </div>
-<div class="section" id="progress">
-<span id="id22"></span><h3>2.4 进展性<a class="headerlink" href="#progress" title="永久链接至标题">¶</a></h3>
+<div class="section" id="paxos-progress">
+<span id="id22"></span><h3>2.4 进展性<a class="headerlink" href="#paxos-progress" title="永久链接至标题">¶</a></h3>
 <p>很容易构造出一种情况，在该情况下，两个Proposers持续地生成编号递增的一系列提案，但是没有提案会被选定。Proposer <cite>p</cite> 为一个编号为 <cite>n</cite><sub>1</sub> 的提案完成了Phase1，然后另一个Proposer <cite>q</cite> 为编号为 <cite>n</cite><sub>2</sub><cite>(n</cite><sub>2</sub> &gt; <cite>n</cite><sub>1</sub><cite>)</cite> 的提案完成了Phase1。Proposer <cite>p</cite> 的针对编号 <cite>n</cite><sub>1</sub> 的提案的Phase2的所有accept请求被忽略，因为Acceptors已经承诺不再通过任何编号小于 <cite>n</cite><sub>2</sub> 的提案。这样Proposer <cite>p</cite> 就会用一个新的编号 <cite>n</cite><sub>3</sub><cite>(n</cite><sub>3</sub> <cite>&gt; n</cite><sub>2</sub><cite>)</cite> 重新开始并完成Phase1，这又会导致在Phase2里Proposer <cite>q</cite> 的所有accept请求被忽略，如此循环往复。</p>
 <p>为了保证进度，必须选择一个特定的Proposer来作为一个唯一的提案提出者。如果这个Proposer可以同半数以上的Acceptors通信，同时可以使用一个比现有的编号都大的编号的提案的话，那么它就可以成功的产生一个可以被通过的提案。再通过当它知道某些更高编号的请求时，舍弃当前的提案并重做，这个Proposer最终一定会产生一个足够大的提案编号。</p>
 <p>如果系统中有足够的组件(Proposer，Acceptors及通信网络)工作良好，通过选择一个特定的Proposer，活性就可以达到。著名的FLP结论 <a class="footnote-reference" href="#id38" id="id23">[1]</a> 指出，一个可靠的Proposer选举算法要么利用随机性要么利用实时性来实现—比如使用超时机制。然而，无论选举是否成功，安全性都可以保证。 <a class="footnote-reference" href="#id52" id="id24">[♦]</a><sup>译注</sup></p>
 </div>
-<div class="section" id="implementation">
-<span id="id25"></span><h3>2.5 实现<a class="headerlink" href="#implementation" title="永久链接至标题">¶</a></h3>
+<div class="section" id="paxos-implementation">
+<span id="id25"></span><h3>2.5 实现<a class="headerlink" href="#paxos-implementation" title="永久链接至标题">¶</a></h3>
 <p>Paxos算法 <a class="footnote-reference" href="#id42" id="id26">[5]</a> 假设了一组进程网络。在它的一致性算法中，每个进程扮演着Proposer，Acceptor及Learner的角色，该算法选定一个Leader来扮演那个特定的Proposer和Learner。Paxos一致性算法就是上面描述的那个，请求和响应都是以普通消息的方式发送(响应消息通过对应的提案的编号来标识以防止混淆)。使用可靠性的存储设备来存储Acceptor需要记住的信息来防止出错。Acceptor在真正送出响应之前，会将它记录在可靠性存储设备中。</p>
 <p>剩下的就是需要描述保证提案编号唯一性的机制了。不同的Proposers会从不相交的编号集合中选择自己的编号，这样任何两个Proposers就不会有相同编号的提案了。每个Proposer需要将它目前生成的最大编号的提案记录在可靠性存储设备中，然后用一个比已经使用的所有编号都大的提案开始Phase1。</p>
 </div>
 </div>
-<div class="section" id="state-machine">
-<span id="id27"></span><h2>3 实现状态机模型<a class="headerlink" href="#state-machine" title="永久链接至标题">¶</a></h2>
+<div class="section" id="paxos-state-machine">
+<span id="id27"></span><h2>3 实现状态机模型<a class="headerlink" href="#paxos-state-machine" title="永久链接至标题">¶</a></h2>
 <p>实现分布式系统的一种简单方式就是，使用一组客户端集合然后向一个中央服务器发送命令。服务器可以看成是一个以某种顺序执行客户端命令的确定性状态机。该状态机有一个当前状态，通过输入一个命令来产生一个输出以及一个新的状态。比如一个分布式银行系统的客户端可能是一些出纳员，状态机状态由所有用户的账户余额组成。一个取款操作，通过执行一个减少账户余额的状态机命令(当且仅当余额大于等于取款数目时)实现，将新旧余额作为输出。</p>
 <p>使用中央服务器的系统在该服务器失败的情况下，整个系统就失败了。因此，我们使用一组服务器来代替它，每个服务器都独立了实现了该状态机。因为状态机是确定性的，如果它们都按照相同的命令序列执行，那么就会产生相同的状态机状态和输出。一个产生命令的客户端，就可以使用任意服务器为它产生的输出。</p>
 <p>为了保证所有的服务器都执行相同的状态机命令序列，我们需要实现一系列独立的Paxos一致性算法实例，第 <cite>i</cite> 个实例选定的值作为序列中的第 <cite>i</cite> 个状态机命令。在算法的每个实例中，每个服务器担任所有的角色(Proposer、Acceptor和Learner)。现在，我们假设服务器集合是固定的，这样所有的一致性算法实例都具有相同的参与者集合。</p>
@@ -221,8 +223,8 @@
 <p>在该系统的正常执行情况下，我们假设总是只有一个Leader，只有在当前Leader失效及选举新Leader的较短时期内才会违背这个假设。在特殊情况下，Leader选举可能失败。如果没有服务器担任Leader，那么就没有新命令被提出。如果同时有多个服务器认为自己是Leader，它们在一个一致性算法执行实例中可能提出不同的value，这可能会导致无法选出一个value。但是，安全性一直都可以保证—即不可能会同时有两个命令被选定为第i个状态机命令。Leader的选举只是为了保证progress。</p>
 <p>如果服务器集合是变化的，那么必须有某种方式来决定哪些服务器来实现哪些一致性算法实例。最简单的方式就是通过状态机本身来完成。当前的服务器集合可以作为状态的一部分，同时可以通过某些状态机命令来改变。同时通过用执行完第 <cite>i</cite> 个状态机命令后的状态来描述执行一致性算法实例 <cite>i + α</cite> 的服务器集合，我们就能让Leader在执行完第 <cite>i</cite> 个状态机命令后可以提前获取 <cite>α</cite> 个状态机命令 <a class="footnote-reference" href="#id59" id="id35">[##]</a><sup>译注</sup> 。这就提供了一种支持任意复杂的重配置算法的简单实现。 <a class="footnote-reference" href="#id60" id="id36">[♠♠]</a><sup>译注</sup></p>
 </div>
-<div class="section" id="references">
-<span id="id37"></span><h2>参考文献<a class="headerlink" href="#references" title="永久链接至标题">¶</a></h2>
+<div class="section" id="paxos-references">
+<span id="id37"></span><h2>参考文献<a class="headerlink" href="#paxos-references" title="永久链接至标题">¶</a></h2>
 <table class="docutils footnote" frame="void" id="id38" rules="none">
 <colgroup><col class="label" /><col /></colgroup>
 <tbody valign="top">
@@ -254,8 +256,8 @@
 </tbody>
 </table>
 </div>
-<div class="section" id="notes">
-<span id="id43"></span><h2>注释<a class="headerlink" href="#notes" title="永久链接至标题">¶</a></h2>
+<div class="section" id="paxos-notes">
+<span id="id43"></span><h2>注释<a class="headerlink" href="#paxos-notes" title="永久链接至标题">¶</a></h2>
 <table class="docutils footnote" frame="void" id="id44" rules="none">
 <colgroup><col class="label" /><col /></colgroup>
 <tbody valign="top">
@@ -405,28 +407,44 @@
 </div>
 
 
-          </div>
+          
+<h1>评论|建议</h1>
+<!-- Duoshuo Comment BEGIN -->
+	<div class="ds-thread"></div>
+	<script type="text/javascript">
+	var duoshuoQuery = {short_name:"dsdoc"};
+	(function() {
+		var ds = document.createElement('script');
+		ds.type = 'text/javascript';ds.async = true;
+		ds.src = 'http://static.duoshuo.com/embed.js';
+		ds.charset = 'UTF-8';
+		(document.getElementsByTagName('head')[0] 
+		|| document.getElementsByTagName('body')[0]).appendChild(ds);
+	})();
+	</script>
+<!-- Duoshuo Comment END -->
         </div>
       </div>
+    </div>
       <div class="sphinxsidebar">
         <div class="sphinxsidebarwrapper">
   <h3><a href="../index.html">內容目录</a></h3>
   <ul>
 <li><a class="reference internal" href="#">【译】Paxos Made Simple</a><ul>
-<li><a class="reference internal" href="#translation-preface">译序</a></li>
-<li><a class="reference internal" href="#abstract">摘要</a></li>
-<li><a class="reference internal" href="#introduction">1 导引</a></li>
-<li><a class="reference internal" href="#algorithm">2 一致性算法</a><ul>
-<li><a class="reference internal" href="#problem">2.1 问题描述</a></li>
-<li><a class="reference internal" href="#choosing">2.2 提案的选定</a></li>
-<li><a class="reference internal" href="#learning">2.3 获取被选定的提案值</a></li>
-<li><a class="reference internal" href="#progress">2.4 进展性</a></li>
-<li><a class="reference internal" href="#implementation">2.5 实现</a></li>
+<li><a class="reference internal" href="#paxos-simple-translation-preface">译序</a></li>
+<li><a class="reference internal" href="#paxos-abstract">摘要</a></li>
+<li><a class="reference internal" href="#paxos-introduction">1 导引</a></li>
+<li><a class="reference internal" href="#paxos-algorithm">2 一致性算法</a><ul>
+<li><a class="reference internal" href="#paxos-problem">2.1 问题描述</a></li>
+<li><a class="reference internal" href="#paxos-choosing">2.2 提案的选定</a></li>
+<li><a class="reference internal" href="#paxos-learning">2.3 获取被选定的提案值</a></li>
+<li><a class="reference internal" href="#paxos-progress">2.4 进展性</a></li>
+<li><a class="reference internal" href="#paxos-implementation">2.5 实现</a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#state-machine">3 实现状态机模型</a></li>
-<li><a class="reference internal" href="#references">参考文献</a></li>
-<li><a class="reference internal" href="#notes">注释</a></li>
+<li><a class="reference internal" href="#paxos-state-machine">3 实现状态机模型</a></li>
+<li><a class="reference internal" href="#paxos-references">参考文献</a></li>
+<li><a class="reference internal" href="#paxos-notes">注释</a></li>
 </ul>
 </li>
 </ul>
@@ -435,8 +453,8 @@
   <p class="topless"><a href="../index.html"
                         title="上一章">分布式系统文档</a></p>
   <h4>下一个主题</h4>
-  <p class="topless"><a href="../paxoslease/index.html"
-                        title="下一章">【译】PaxosLease：实现租约的无盘Paxos算法</a></p>
+  <p class="topless"><a href="../paxosmademoderatelycomplex/index.html"
+                        title="下一章">【译】Paxos Made Moderately Complex</a></p>
   <h3>本页</h3>
   <ul class="this-page-menu">
     <li><a href="../_sources/paxosmadesimple/index.txt"
@@ -466,7 +484,7 @@
           <a href="../genindex.html" title="总目录"
              >索引</a></li>
         <li class="right" >
-          <a href="../paxoslease/index.html" title="【译】PaxosLease：实现租约的无盘Paxos算法"
+          <a href="../paxosmademoderatelycomplex/index.html" title="【译】Paxos Made Moderately Complex"
              >下一页</a> |</li>
         <li class="right" >
           <a href="../index.html" title="分布式系统文档"
@@ -476,6 +494,7 @@
     </div>
     <div class="footer">
         &copy; 版权所有 2012, dsdoc.net.
+      最后更新日期是 2013-01-03.
       使用 <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.1.3.
     </div>
   </body>

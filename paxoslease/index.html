@@ -26,8 +26,9 @@
     <script type="text/javascript" src="../_static/underscore.js"></script>
     <script type="text/javascript" src="../_static/doctools.js"></script>
     <script type="text/javascript" src="../_static/translations.js"></script>
+    <link rel="shortcut icon" href="../_static/favicon.ico"/>
     <link rel="top" title="distributed system documents(dsdoc) v0.0.1-alpha" href="../index.html" />
-    <link rel="prev" title="【译】Paxos Made Simple" href="../paxosmadesimple/index.html" /> 
+    <link rel="prev" title="【译】Paxos Made Moderately Complex" href="../paxosmademoderatelycomplex/index.html" /> 
   </head>
   <body>
     <div class="related">
@@ -37,17 +38,17 @@
           <a href="../genindex.html" title="总目录"
              accesskey="I">索引</a></li>
         <li class="right" >
-          <a href="../paxosmadesimple/index.html" title="【译】Paxos Made Simple"
+          <a href="../paxosmademoderatelycomplex/index.html" title="【译】Paxos Made Moderately Complex"
              accesskey="P">上一页</a> |</li>
         <li><a href="../index.html">distributed system documents(dsdoc) v0.0.1-alpha</a> &raquo;</li> 
       </ul>
     </div>  
 
     <div class="document">
-      <div class="documentwrapper">
-        <div class="bodywrapper">
-          <div class="body">
-            
+    <div class="documentwrapper">
+      <div class="bodywrapper">
+        <div class="body">
+          
   <div class="section" id="paxoslease-paxos">
 <span id="paxoslease"></span><h1>【译】PaxosLease：实现租约的无盘Paxos算法<a class="headerlink" href="#paxoslease-paxos" title="永久链接至标题">¶</a></h1>
 <table class="docutils field-list" frame="void" rules="none">
@@ -66,19 +67,21 @@
 </tr>
 </tbody>
 </table>
-<p>Marton Trencseni, <a class="reference external" href="mailto:mtrencseni&#37;&#52;&#48;scalien&#46;com">mtrencseni<span>&#64;</span>scalien<span>&#46;</span>com</a>
-Attila Gazso, <a class="reference external" href="mailto:agazso&#37;&#52;&#48;scalien&#46;com">agazso<span>&#64;</span>scalien<span>&#46;</span>com</a></p>
+<div class="line-block">
+<div class="line">Marton Trencseni, <a class="reference external" href="mailto:mtrencseni&#37;&#52;&#48;scalien&#46;com">mtrencseni<span>&#64;</span>scalien<span>&#46;</span>com</a></div>
+<div class="line">Attila Gazso, <a class="reference external" href="mailto:agazso&#37;&#52;&#48;scalien&#46;com">agazso<span>&#64;</span>scalien<span>&#46;</span>com</a></div>
+</div>
 <p>这篇论文描述了PaxosLease算法，一种用于租约协商的分布式算法。PaxosLease基于Paxos算法，但无需写盘和时钟同步。PaxosLease在开源的分布式复制KV存储Keyspace中被用来做Master租约协商。</p>
-<div class="section" id="intro">
-<span id="id1"></span><h2>1. 介绍<a class="headerlink" href="#intro" title="永久链接至标题">¶</a></h2>
+<div class="section" id="paxoslease-intro">
+<span id="id1"></span><h2>1. 介绍<a class="headerlink" href="#paxoslease-intro" title="永久链接至标题">¶</a></h2>
 <p>在并发编程中，<em>锁</em> 是进程用来同步共享资源访问的基本原语。在锁以不设置过期时间的方式分配（也没有一个监督进程）的系统中，锁的持有者在释放锁之前如果失效（Failure），就可能导致其它进程阻塞。</p>
 <p>在高可用系统中，期望避免单点失效导致整个系统阻塞的情况。另外，“重启”失效的系统会比重启一个多线程程序要更困难。因此，在分布式系统中，<em>租约</em> 取代锁以避免饿死的情况。<em>租约</em> 就是 <em>有过期时间的锁</em> 。如果锁的持有者失效了或是和其它结点断开连接，它的租约会自动过期，其它结点可以得到租约。</p>
 <p>我们假设基本的步骤如下：系统由一组请求者和一组接受者组成，请求者和接受者都有各自的算法；系统没有拜占庭问题，即结点之间不会通过不遵守各自算法作弊（也没有被Hack）。接受者的数目是固定不变的。</p>
 <p>一个朴素的多数派投票式的算法可以正确地解决分布式租约的问题；这里 <em>正确</em> 的意思是，任何时候租约不会被多于一个结点持有。但是，这个简单的算法在有多个请求者时会频繁 <em>阻塞</em> ，因此需要一个更成熟的方案。</p>
 <p>朴素的多数派算法是这样的： 请求者启动一个开始本地超时计时，超时时间T秒，然后向接受者发送请求时长为T的租约。接受者收到请求后启动一个时长为T秒的定时器，然后发送接受消息给请求者。超时之后，接受者清除自己的状态。如果接受者收到一个请求但他的状态不是空，则接受者不回应或是发一个拒绝消息。为确保任何时间只有一个请求者能获得租约，请求者必须收到多数派的接受者的接受消息；这样它获取租约直到它本地的定时器超时。</p>
 <p>正如上面讨论的，有多个请求者时，有可能（而且很有可能）没有请求者能得到多数派，请求者会一直互相阻塞着。举个例子，有3个请求者1、2、3和三个接受者A、B、C，如果分布状态是这样的：A接受1的请求，B接受2的和C接受3的，然后没有一个请求者得到多数派的接受。系统必须等到超时过期，接受者清空自己的状态，这时请求者会再重试。但很很可能会再次阻塞。</p>
-<p>在本文描述的解决方法是采取Paxos <a class="footnote-reference" href="#id18" id="id2">[1]</a> 方案，引入 <em>准备</em> 和 <em>提议</em> 阶段，这样可以完全避免这类阻塞问题 <a class="footnote-reference" href="#id25" id="id3">[*]</a> 。Paxos解决复制状态机的问题，每个结点有一个本地的状态机拷贝，希望在下一个状态转换时结点间达成一致。Paxos是一个基于多数派的算法，意味着，多数派的结点没有宕并且之间可以通信，是可能的。Paxos达成一致的处理在一个状态转换上，所以在实践中，需要逐次运行多个Paxos实例来协商出一序列的状态转换 <a class="footnote-reference" href="#id20" id="id4">[3]</a> 。Paxos中，接受者在发送响应之前要先把自己的状态记录到盘上，以保证一旦一个值（状态转换）被选定，之后一直选定该值；换句话说，不管是否有出错情况出现，所有的状态机经历相同的状态转换序列。</p>
-<p>不像之前的那些基于Paxos的分布式租约算法，比如Fatlease <a class="footnote-reference" href="#id22" id="id5">[5]</a> ，PaxosLease不对结点的本地时钟做任务时间同步的假设（也不需要全局的同步）。另外，Fatlease为了租约命令连续地运行Paxos实例，而PaxosLease利用租约的临时性完全避免了这样的复杂性，是一个更简单和优雅的算法。</p>
+<p>在本文描述的解决方法是采取Paxos <a class="footnote-reference" href="#id17" id="id2">[1]</a> 方案，引入 <em>准备</em> 和 <em>提议</em> 阶段，这样可以完全避免这类阻塞问题 <a class="footnote-reference" href="#id24" id="id3">[*]</a> 。Paxos解决复制状态机的问题，每个结点有一个本地的状态机拷贝，希望在下一个状态转换时结点间达成一致。Paxos是一个基于多数派的算法，意味着，多数派的结点没有宕并且之间可以通信，是可能的。Paxos达成一致的处理在一个状态转换上，所以在实践中，需要逐次运行多个Paxos实例来协商出一序列的状态转换 <a class="footnote-reference" href="#id19" id="id4">[3]</a> 。Paxos中，接受者在发送响应之前要先把自己的状态记录到盘上，以保证一旦一个值（状态转换）被选定，之后一直选定该值；换句话说，不管是否有出错情况出现，所有的状态机经历相同的状态转换序列。</p>
+<p>不像之前的那些基于Paxos的分布式租约算法，比如Fatlease <a class="footnote-reference" href="#id21" id="id5">[5]</a> ，PaxosLease不对结点的本地时钟做任务时间同步的假设（也不需要全局的同步）。另外，Fatlease为了租约命令连续地运行Paxos实例，而PaxosLease利用租约的临时性完全避免了这样的复杂性，是一个更简单和优雅的算法。</p>
 <p>PaxosLease是Paxos的一个自然特化变种。因为在Paxos中假设结点个数是固定的（并且结点标识是全局已知的）。PaxosLease处理一个特殊的复制状态机，形式是：</p>
 <div class="figure">
 <a class="reference internal image-reference" href="../_images/PaxosLease-distributed-state-machine.png"><img alt="../_images/PaxosLease-distributed-state-machine.png" src="../_images/PaxosLease-distributed-state-machine.png" /></a>
@@ -93,8 +96,8 @@ Attila Gazso, <a class="reference external" href="mailto:agazso&#37;&#52;&#48;sc
 <li>传输中的消息延时</li>
 </ol>
 </div>
-<div class="section" id="definitions">
-<span id="id6"></span><h2>2. 定义<a class="headerlink" href="#definitions" title="永久链接至标题">¶</a></h2>
+<div class="section" id="paxoslease-definitions">
+<span id="id6"></span><h2>2. 定义<a class="headerlink" href="#paxoslease-definitions" title="永久链接至标题">¶</a></h2>
 <p>一个PaxosLease单元由请求者和接受者组成。我们假设有 <em>n</em> 个接受者和任意个的请求者。在实践中，结点常常会同时扮演请求者和接受者的角色，但这是个实现上的问题不会影响这里的讨论。</p>
 <p>请求者发送 <em>准备请求</em> （Prepare Request）和 <em>提议请求</em> （Propose Request）消息给接受者；接受者回应的是 <em>准备响应</em> （Prepare Response）和 <em>提议响应</em> （Propose Response）消息。这些消息有下面的结构：</p>
 <ol class="arabic simple">
@@ -113,8 +116,8 @@ Attila Gazso, <a class="reference external" href="mailto:agazso&#37;&#52;&#48;sc
 <p>每个请求者的投票编号是全局唯一的并且单调增加。在实践中，实现的方式可以是，投票编号由 <em>请求者id</em> 字段 ，一个 <em>重启计数器</em> 和 一个 请求次数的 <em>计数器</em> 字段 组成（可以处理最坏的情况）。每次请求者启动时重启计数器递增，并写到可靠的存储中。</p>
 <p>PaxosLease保证了 <em>租约不变式</em> ：在任何给定的时间点，不会有多余1个请求者持有租约。</p>
 </div>
-<div class="section" id="basic-algorithm">
-<span id="id7"></span><h2>3. 基本算法<a class="headerlink" href="#basic-algorithm" title="永久链接至标题">¶</a></h2>
+<div class="section" id="paxoslease-basic-algorithm">
+<span id="id7"></span><h2>3. 基本算法<a class="headerlink" href="#paxoslease-basic-algorithm" title="永久链接至标题">¶</a></h2>
 <p>这一节描述分别从请求者和接受者出发的算法基本流程。请求者发送准备和提议请求，接受者回应准备和提议响应。如果一切正常和话，请求者获得租约花费两轮通信的时间。</p>
 <ol class="arabic simple">
 <li>一个请求者想要获得租约，时长 <em>T &lt; M</em> 。它生成投票编号 <tt class="docutils literal"><span class="pre">[request.ballotNumber]</span></tt>，然后发送准备请求给多数派的接受者。</li>
@@ -205,8 +208,8 @@ Proposer::OnTimeout()
 <p>传递都是时间间隔（相对时间），这一点很重要，导致只有获取了租约的请求者才知道自己有租约。该请求者不能告诉其它结点它获取了租约（与经典Paxos的学习消息类似），因为其它结点不能知道学习消息在传输的过程要消耗多少时间。因此，只有获得了租约的请求者知道它自己持有租约。所有其它的结点知道的是自己没有获得租约。换句话说，每个请求者关于租约有两种状态：“我没有租约，我也不知道谁持有租约” 和 “我持有租约”。当然，结果可以发出学习消息作为 <em>hint</em> ，这可以用在高级应用中或是用来探索，但这些使用方式超出本论文范围。</p>
 <p>有可能一个请求者在第3步和第5步中没有得到多数派接受者赞同响应。这种情况下，请求者可以休眠一会儿再重新从第1步用更高的投票编号执行算法。</p>
 </div>
-<div class="section" id="proof">
-<span id="id8"></span><h2>4. 租约不变式证明<a class="headerlink" href="#proof" title="永久链接至标题">¶</a></h2>
+<div class="section" id="paxoslease-proof">
+<span id="id8"></span><h2>4. 租约不变式证明<a class="headerlink" href="#paxoslease-proof" title="永久链接至标题">¶</a></h2>
 <p>我们先给出为什么PaxosLease可以工作的直觉感受。图2是以画图方式的解释：请求者在发送提议请求之前开启定时器，接受者只能 <em>一段时间后</em> 开启他们的定时器；接受者在发送提议响应之前开启定时器的。因此，如果有多数派的接受者存下了状态并开启定时器，在请求者定时器过期前，将没有其它的请求者可以得到租约。将没有2个请求者同时认为自己是租约的持有者。</p>
 <div class="figure">
 <a class="reference internal image-reference" href="../_images/time-flow.png"><img alt="../_images/time-flow.png" src="../_images/time-flow.png" /></a>
@@ -218,39 +221,39 @@ Proposer::OnTimeout()
 <p>第二部分：在 <cite>t</cite><sub>acquire</sub> 到 <cite>t</cite><sub>end</sub> 的时间内，没有其它的请求者 <cite>q</cite> 能以 <cite>b &lt; b&#8217;</cite> 的投票编号的请求来获得租约。为了持有租约，请求者 <cite>q</cite> 必须得到多数派接受者 <cite>A&#8217;</cite><sub>1</sub> 给它发送空个准备响应。 令 <cite>a</cite> 为同时在 <cite>A&#8217;</cite><sub>1</sub> 和 <cite>A</cite><sub>2</sub> 的接受者。因为 <cite>b &lt; b&#8217;</cite> ， <cite>a</cite> 必须是先接受了  <cite>p</cite> 的提案然后发送准备响应给 <cite>q</cite> 的。但是既然 <cite>a</cite> 接受了 <cite>p</cite> 的提案，如果它发送一个空个准备响应给 <cite>q</cite> 它的状态必须是空的，它的定时器必须已经过期了，即 <cite>p</cite> 的定时器过期了，因此 <cite>p</cite> 已经失去了租约。在 <cite>p</cite> 和 <cite>q</cite> 的租约之间没有重叠。</p>
 </div>
 <div class="section" id="liveness">
-<span id="id9"></span><h2>5. 活性（Liveness）<a class="headerlink" href="#liveness" title="永久链接至标题">¶</a></h2>
+<span id="paxoslease-liveness"></span><h2>5. 活性（Liveness）<a class="headerlink" href="#liveness" title="永久链接至标题">¶</a></h2>
 <p>Paxos类型的算法比如PaxosLease，有动态死锁的可能：两个请求者可能连续地生成越来越高的投票编号，发送准备请求给接受者，接受者连续地增加自己承诺的最高投票编号，结果没有请求者可以让接受者接受提案。在实践中，可以通过让请求者在重新执行算法前等待一小段随机的时间来规避。</p>
 <p>Paxos类型的算法一个主要的优点是没有静态死锁，在朴素的投票算法中有说到。没有静态死锁是因为请求者可以覆盖接受者的状态，算法又保证了多数派是不会被覆盖的。</p>
 </div>
-<div class="section" id="extending-leases">
-<span id="id10"></span><h2>6. 延长租约<a class="headerlink" href="#extending-leases" title="永久链接至标题">¶</a></h2>
+<div class="section" id="paxoslease-extending-leases">
+<span id="id9"></span><h2>6. 延长租约<a class="headerlink" href="#paxoslease-extending-leases" title="永久链接至标题">¶</a></h2>
 <p>在某些情况下，一旦一个请求者持有资源后可以持续持有而不是一个原来的租给时间，这一点很重要。一个典型的场景是，在分布式系统中当租约指出Master结点后，期望这个结点可以长时间作为Master。</p>
 <p>为了适应这个需求，只要请求者的算法需要修改。要第3步中，如果多数派响应了空的提案或是 <em>已存在提案</em> （即这个提案中的该请求者的租约还没有过期），它可以再次提议自己为租约的持有者。这样允许请求者延长它的租约 <em>O(T)</em> 的时间。接受者的算法无需修改。</p>
 </div>
-<div class="section" id="releasing-leases">
-<span id="id11"></span><h2>7. 释放租约<a class="headerlink" href="#releasing-leases" title="永久链接至标题">¶</a></h2>
+<div class="section" id="paxoslease-releasing-leases">
+<span id="id10"></span><h2>7. 释放租约<a class="headerlink" href="#paxoslease-releasing-leases" title="永久链接至标题">¶</a></h2>
 <p>到现在的算法描述中，请求者的租约是在一定时间后自动过期的。在一些情况下，尽快释放租约让其它的结点获取是很重要的。一个典型例子是分布式处理，处理进程获得一个资源的租约，执行其上的操作，然后期望尽快释放租约好让其它处理进行获得。</p>
 <p>为了适应这个需求，请求者可以发送一个特定释放消息给接受者，消息中包含了它要释放租给的投票编号。在发送释放消息之前，请求者把内部状态从“我持有租约”切换到“我没有持有租约”。当接受者收到释放租约时，查检是否与已接受的投票编号相同。如相同则清空自己的状态；否则不做任何操作。请求者也可以发送一个释放消息给其它请求者作为提示，告诉他们可以去获取租约了。</p>
 </div>
-<div class="section" id="leases-for-many-resources">
-<span id="id12"></span><h2>8. 多个资源的租约<a class="headerlink" href="#leases-for-many-resources" title="永久链接至标题">¶</a></h2>
+<div class="section" id="paxoslease-for-many-resources">
+<span id="id11"></span><h2>8. 多个资源的租约<a class="headerlink" href="#paxoslease-for-many-resources" title="永久链接至标题">¶</a></h2>
 <p>算法定义了关于一个资源 <em>R</em> 的租约动作。在实践中，结点会要处理多个资源，比如一个分布式处理中要用的租约。PaxosLease可以为各个资源运行独立的实例，不同的实例的消息、请求者和接受者状态标志上 <em>资源标识</em> 。一个结点作为请求者和接受者，每个PaxosLease实例消耗内存不超过 ~100字节，这样结点上1G内存可以处理 ~1千万个资源租约。再加上PaxosLease不需要硬盘同步和时钟同步，该算法可以用在很多需要细粒度锁的场景上。</p>
 </div>
-<div class="section" id="implementation">
-<span id="id13"></span><h2>9. 实现<a class="headerlink" href="#implementation" title="永久链接至标题">¶</a></h2>
-<p>在Scalien的分布式复制key-value存储Keyspace中 <a class="footnote-reference" href="#id26" id="id14">[†]</a><sup>译注</sup>，PaxosLease用于Master的租约协商。Keyspace作为PaxosLease的参考实现，包含了很多实践上的优化。由于基于开源AGPL许可，感兴趣的读者可以自由获取Keyspace实现。源代码和二进制文件可以在 <a class="reference external" href="http://scalien.com">http://scalien.com</a> <a class="footnote-reference" href="#id27" id="id15">[‡]</a><sup>译注</sup> 下载。</p>
+<div class="section" id="paxoslease-implementation">
+<span id="id12"></span><h2>9. 实现<a class="headerlink" href="#paxoslease-implementation" title="永久链接至标题">¶</a></h2>
+<p>在Scalien的分布式复制key-value存储Keyspace中 <a class="footnote-reference" href="#id25" id="id13">[†]</a><sup>译注</sup>，PaxosLease用于Master的租约协商。Keyspace作为PaxosLease的参考实现，包含了很多实践上的优化。由于基于开源AGPL许可，感兴趣的读者可以自由获取Keyspace实现。源代码和二进制文件可以在 <a class="reference external" href="http://scalien.com">http://scalien.com</a> <a class="footnote-reference" href="#id26" id="id14">[‡]</a><sup>译注</sup> 下载。</p>
 </div>
-<div class="section" id="genealogy">
-<span id="id16"></span><h2>10. 宗谱<a class="headerlink" href="#genealogy" title="永久链接至标题">¶</a></h2>
+<div class="section" id="paxoslease-genealogy">
+<span id="id15"></span><h2>10. 宗谱<a class="headerlink" href="#paxoslease-genealogy" title="永久链接至标题">¶</a></h2>
 <p>Leslie Lamport在1990年发明Paxos算法，但在1998才发表的。这篇论文《The Part-Time Parliament》对于很多读者过于极客，这导致第二篇论文《Paxos Made Simple》。Paxos通过引入个准备和提议两个阶段和让接受者在响应消息前把自己状态写入稳定存储，解决了发布式一致性问题。多轮的Paxos可以顺序运行以协调复制状态机的状态转换。</p>
 <p>在论文《Paxos Made Live - An Engineering Perspective》和《The Chubby Lock
 Service for Loosely-Coupled Distributed Systems》中描述的Google内部的分布式实现栈用了Paxos，这让Paxos流行起来。在Google的Chubby中，多轮顺序执行Paxos以达到，在复制数据库中下次写操作上的一致性，提供了思考复制状态机的另一种方法。</p>
 <p>《FaTLease: Scalable Fault-Tolerant Lease Negotiation with
 Paxos》中描述的Fatlease解决了和PaxosLease一样的问题，但它结构更复杂，因为模仿了在Google论文中提到的多轮Paxos，而不是PaxosLease所用的简单的接受者状态超时。另外，FaTLease需要结点同步他们的时钟，这一点使的它在现实世界使用中没有吸引力。PaxosLease灵感来自于FaTLease，解决了上述的缺点。</p>
 </div>
-<div class="section" id="references">
-<span id="id17"></span><h2>参考文献<a class="headerlink" href="#references" title="永久链接至标题">¶</a></h2>
-<table class="docutils footnote" frame="void" id="id18" rules="none">
+<div class="section" id="paxoslease-references">
+<span id="id16"></span><h2>参考文献<a class="headerlink" href="#paxoslease-references" title="永久链接至标题">¶</a></h2>
+<table class="docutils footnote" frame="void" id="id17" rules="none">
 <colgroup><col class="label" /><col /></colgroup>
 <tbody valign="top">
 <tr><td class="label"><a class="fn-backref" href="#id2">[1]</a></td><td><ol class="first last upperalpha simple" start="12">
@@ -259,7 +262,7 @@ Paxos》中描述的Fatlease解决了和PaxosLease一样的问题，但它结构
 </td></tr>
 </tbody>
 </table>
-<table class="docutils footnote" frame="void" id="id19" rules="none">
+<table class="docutils footnote" frame="void" id="id18" rules="none">
 <colgroup><col class="label" /><col /></colgroup>
 <tbody valign="top">
 <tr><td class="label">[2]</td><td><ol class="first last upperalpha simple" start="12">
@@ -268,7 +271,7 @@ Paxos》中描述的Fatlease解决了和PaxosLease一样的问题，但它结构
 </td></tr>
 </tbody>
 </table>
-<table class="docutils footnote" frame="void" id="id20" rules="none">
+<table class="docutils footnote" frame="void" id="id19" rules="none">
 <colgroup><col class="label" /><col /></colgroup>
 <tbody valign="top">
 <tr><td class="label"><a class="fn-backref" href="#id4">[3]</a></td><td><ol class="first last upperalpha simple" start="20">
@@ -277,7 +280,7 @@ Paxos》中描述的Fatlease解决了和PaxosLease一样的问题，但它结构
 </td></tr>
 </tbody>
 </table>
-<table class="docutils footnote" frame="void" id="id21" rules="none">
+<table class="docutils footnote" frame="void" id="id20" rules="none">
 <colgroup><col class="label" /><col /></colgroup>
 <tbody valign="top">
 <tr><td class="label">[4]</td><td><ol class="first last upperalpha simple" start="13">
@@ -286,7 +289,7 @@ Paxos》中描述的Fatlease解决了和PaxosLease一样的问题，但它结构
 </td></tr>
 </tbody>
 </table>
-<table class="docutils footnote" frame="void" id="id22" rules="none">
+<table class="docutils footnote" frame="void" id="id21" rules="none">
 <colgroup><col class="label" /><col /></colgroup>
 <tbody valign="top">
 <tr><td class="label"><a class="fn-backref" href="#id5">[5]</a></td><td><ol class="first last upperalpha simple" start="6">
@@ -295,64 +298,80 @@ Paxos》中描述的Fatlease解决了和PaxosLease一样的问题，但它结构
 </td></tr>
 </tbody>
 </table>
-<table class="docutils footnote" frame="void" id="id23" rules="none">
+<table class="docutils footnote" frame="void" id="id22" rules="none">
 <colgroup><col class="label" /><col /></colgroup>
 <tbody valign="top">
 <tr><td class="label">[6]</td><td>AGPL License. <a class="reference external" href="http://www.fsf.org/licensing/licenses/agpl-3.0.html">http://www.fsf.org/licensing/licenses/agpl-3.0.html</a></td></tr>
 </tbody>
 </table>
 </div>
-<div class="section" id="note">
-<span id="id24"></span><h2>注释<a class="headerlink" href="#note" title="永久链接至标题">¶</a></h2>
-<table class="docutils footnote" frame="void" id="id25" rules="none">
+<div class="section" id="paxoslease-notes">
+<span id="id23"></span><h2>注释<a class="headerlink" href="#paxoslease-notes" title="永久链接至标题">¶</a></h2>
+<table class="docutils footnote" frame="void" id="id24" rules="none">
 <colgroup><col class="label" /><col /></colgroup>
 <tbody valign="top">
 <tr><td class="label"><a class="fn-backref" href="#id3">[*]</a></td><td>另一个解决方法是，让系统阻塞，但是引入一个“撤销”机制，让请求者撤销他的请求从而让某个其它的请求者可以获得租约。</td></tr>
 </tbody>
 </table>
+<table class="docutils footnote" frame="void" id="id25" rules="none">
+<colgroup><col class="label" /><col /></colgroup>
+<tbody valign="top">
+<tr><td class="label"><a class="fn-backref" href="#id13">[†]</a></td><td>译注，scalien的GitHub代码工程在 <a class="reference external" href="https://github.com/scalien">https://github.com/scalien</a></td></tr>
+</tbody>
+</table>
 <table class="docutils footnote" frame="void" id="id26" rules="none">
 <colgroup><col class="label" /><col /></colgroup>
 <tbody valign="top">
-<tr><td class="label"><a class="fn-backref" href="#id14">[†]</a></td><td>译注，scalien的GitHub代码工程在 <a class="reference external" href="https://github.com/scalien">https://github.com/scalien</a></td></tr>
-</tbody>
-</table>
-<table class="docutils footnote" frame="void" id="id27" rules="none">
-<colgroup><col class="label" /><col /></colgroup>
-<tbody valign="top">
-<tr><td class="label"><a class="fn-backref" href="#id15">[‡]</a></td><td>译注，这个网站已经没有内容了，Keyspace源代码可以在 <a class="reference external" href="https://github.com/scalien/keyspace">https://github.com/scalien/keyspace</a> 下载。</td></tr>
+<tr><td class="label"><a class="fn-backref" href="#id14">[‡]</a></td><td>译注，这个网站已经没有内容了，Keyspace源代码可以在 <a class="reference external" href="https://github.com/scalien/keyspace">https://github.com/scalien/keyspace</a> 下载。</td></tr>
 </tbody>
 </table>
 </div>
 </div>
 
 
-          </div>
+          
+<h1>评论|建议</h1>
+<!-- Duoshuo Comment BEGIN -->
+	<div class="ds-thread"></div>
+	<script type="text/javascript">
+	var duoshuoQuery = {short_name:"dsdoc"};
+	(function() {
+		var ds = document.createElement('script');
+		ds.type = 'text/javascript';ds.async = true;
+		ds.src = 'http://static.duoshuo.com/embed.js';
+		ds.charset = 'UTF-8';
+		(document.getElementsByTagName('head')[0] 
+		|| document.getElementsByTagName('body')[0]).appendChild(ds);
+	})();
+	</script>
+<!-- Duoshuo Comment END -->
         </div>
       </div>
+    </div>
       <div class="sphinxsidebar">
         <div class="sphinxsidebarwrapper">
   <h3><a href="../index.html">內容目录</a></h3>
   <ul>
 <li><a class="reference internal" href="#">【译】PaxosLease：实现租约的无盘Paxos算法</a><ul>
-<li><a class="reference internal" href="#intro">1. 介绍</a></li>
-<li><a class="reference internal" href="#definitions">2. 定义</a></li>
-<li><a class="reference internal" href="#basic-algorithm">3. 基本算法</a></li>
-<li><a class="reference internal" href="#proof">4. 租约不变式证明</a></li>
+<li><a class="reference internal" href="#paxoslease-intro">1. 介绍</a></li>
+<li><a class="reference internal" href="#paxoslease-definitions">2. 定义</a></li>
+<li><a class="reference internal" href="#paxoslease-basic-algorithm">3. 基本算法</a></li>
+<li><a class="reference internal" href="#paxoslease-proof">4. 租约不变式证明</a></li>
 <li><a class="reference internal" href="#liveness">5. 活性（Liveness）</a></li>
-<li><a class="reference internal" href="#extending-leases">6. 延长租约</a></li>
-<li><a class="reference internal" href="#releasing-leases">7. 释放租约</a></li>
-<li><a class="reference internal" href="#leases-for-many-resources">8. 多个资源的租约</a></li>
-<li><a class="reference internal" href="#implementation">9. 实现</a></li>
-<li><a class="reference internal" href="#genealogy">10. 宗谱</a></li>
-<li><a class="reference internal" href="#references">参考文献</a></li>
-<li><a class="reference internal" href="#note">注释</a></li>
+<li><a class="reference internal" href="#paxoslease-extending-leases">6. 延长租约</a></li>
+<li><a class="reference internal" href="#paxoslease-releasing-leases">7. 释放租约</a></li>
+<li><a class="reference internal" href="#paxoslease-for-many-resources">8. 多个资源的租约</a></li>
+<li><a class="reference internal" href="#paxoslease-implementation">9. 实现</a></li>
+<li><a class="reference internal" href="#paxoslease-genealogy">10. 宗谱</a></li>
+<li><a class="reference internal" href="#paxoslease-references">参考文献</a></li>
+<li><a class="reference internal" href="#paxoslease-notes">注释</a></li>
 </ul>
 </li>
 </ul>
 
   <h4>上一个主题</h4>
-  <p class="topless"><a href="../paxosmadesimple/index.html"
-                        title="上一章">【译】Paxos Made Simple</a></p>
+  <p class="topless"><a href="../paxosmademoderatelycomplex/index.html"
+                        title="上一章">【译】Paxos Made Moderately Complex</a></p>
   <h3>本页</h3>
   <ul class="this-page-menu">
     <li><a href="../_sources/paxoslease/index.txt"
@@ -382,13 +401,14 @@ Paxos》中描述的Fatlease解决了和PaxosLease一样的问题，但它结构
           <a href="../genindex.html" title="总目录"
              >索引</a></li>
         <li class="right" >
-          <a href="../paxosmadesimple/index.html" title="【译】Paxos Made Simple"
+          <a href="../paxosmademoderatelycomplex/index.html" title="【译】Paxos Made Moderately Complex"
              >上一页</a> |</li>
         <li><a href="../index.html">distributed system documents(dsdoc) v0.0.1-alpha</a> &raquo;</li> 
       </ul>
     </div>
     <div class="footer">
         &copy; 版权所有 2012, dsdoc.net.
+      最后更新日期是 2013-01-03.
       使用 <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.1.3.
     </div>
   </body>
