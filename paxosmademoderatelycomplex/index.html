@@ -100,6 +100,27 @@
 </ul>
 <p>本论文给出了 <em>多维Paxos协议</em> （multi-decree Paxos protocol） 的 <em>操作说明</em> ，有时这个协议也被称为是 <em>multi-Paxos</em> 。单维Paxos是非常容易被理解，是 <a class="footnote-reference" href="#id28" id="id9">[15]</a> <a class="footnote-reference" href="#id27" id="id10">[14]</a> 等论文的主题。但是多维Paxos协议（或一些它的变种）正是被用到像Chubby <a class="footnote-reference" href="#id17" id="id11">[4]</a> 和 ZooKeeper <a class="footnote-reference" href="#id23" id="id12">[10]</a> 这样的工业强度系统中的协议。</p>
 </div>
+<div class="section" id="paoxs">
+<span id="paxos-complex-how-why"></span><h2>2 Paoxs如何工作和为什么能工作<a class="headerlink" href="#paoxs" title="永久链接至标题">¶</a></h2>
+<div class="section" id="replicas-and-slots">
+<h3>Replicas and Slots<a class="headerlink" href="#replicas-and-slots" title="永久链接至标题">¶</a></h3>
+<p>为了容忍 <tt class="docutils literal"><span class="pre">f</span></tt> 个Replica Crash，Paxos需要 <tt class="docutils literal"><span class="pre">f</span> <span class="pre">+</span> <span class="pre">1</span></tt> 个Replica。当 <tt class="docutils literal"><span class="pre">κ</span></tt> 要执行命令 <tt class="docutils literal"><span class="pre">&lt;κ,</span> <span class="pre">cid,</span> <span class="pre">op&gt;</span></tt> 时，它需要广播消息 <tt class="docutils literal"><span class="pre">&lt;*Request*,</span> <span class="pre">κ,</span> <span class="pre">cid,</span> <span class="pre">operation&gt;&gt;</span></tt> 给所有的Replica并等待有一个Replica的消息 <tt class="docutils literal"><span class="pre">&lt;*Response*,</span> <span class="pre">cid,</span> <span class="pre">result&gt;&gt;</span></tt> 。</p>
+<p>Replica可以被认为有一序列的Slot可以用于填入命令。每个Slot有一个Slot编号。Replica当收到消息 <tt class="docutils literal"><span class="pre">&lt;request,</span> <span class="pre">p&gt;</span></tt> 后，提交命令 p 到没有使用的最低编号的Slote中。有客户端并发操作的情况，不同的Replica可能在同一个Slot中提交不同的命令。为了避免这种不一致，Replica在真正更新状态前等待Slot的确定，计算出响应发回给客户端。</p>
+<p>Replica没有必要在任何时间都是一致的。他们可能在不同的Slot中提交不同的命令。但是Replica在应用状态上执行的操作的顺序是一致的。图1 中是Replica的伪代码。任一个Replica ρ 维护了4个变量：</p>
+<ul class="simple">
+<li>ρ.state ，（外部不得见的）应用状态。所有的Replica的初始状态是相同的。</li>
+<li>ρ.slot_num ，Replica的当前slot编号（等价于状态的版本，初始值是1）。它包含的是在更新应用状态前下一个需要Learn决定的Slot。</li>
+<li>ρ.proposals ， &lt;Slot编号, 命令&gt;对的一个集合，Replica过去提交了的提案，初始值是 <em>空</em> 。</li>
+<li>ρ.decisions ，&lt;Slot编号, 命令&gt;对的一个集合，对应已经决定了的Slot，初始值也是 <em>空</em> 。</li>
+</ul>
+<p>在给出Replica的操作说明之前，我们先陈述一下Replica的这些持有变量中的一些重要的不变式：</p>
+<p>R1: 在相同的Slot中，已经决定了的命令没有2个是不同的： ∀s, ρ1, ρ2, p1, p2 : &lt;s, p1&gt; ∈ ρ1.decisions ∧ &lt;s, p2&gt; ∈ ρ2.decisions ⇒ p1 = p2</p>
+<div class="figure">
+<a class="reference internal image-reference" href="../_images/figure1.png"><img alt="../_images/figure1.png" src="../_images/figure1.png" /></a>
+<p class="caption">图1：Replica的伪代码</p>
+</div>
+</div>
+</div>
 <div class="section" id="paxos-complex-references">
 <span id="id13"></span><h2>参考文献<a class="headerlink" href="#paxos-complex-references" title="永久链接至标题">¶</a></h2>
 <table class="docutils footnote" frame="void" id="id14" rules="none">
@@ -321,6 +342,10 @@
 <li><a class="reference internal" href="#">【译】Paxos Made Moderately Complex</a><ul>
 <li><a class="reference internal" href="#paxos-complex-abstract">摘要</a></li>
 <li><a class="reference internal" href="#paxos-complex-intro">1 介绍</a></li>
+<li><a class="reference internal" href="#paoxs">2 Paoxs如何工作和为什么能工作</a><ul>
+<li><a class="reference internal" href="#replicas-and-slots">Replicas and Slots</a></li>
+</ul>
+</li>
 <li><a class="reference internal" href="#paxos-complex-references">参考文献</a></li>
 <li><a class="reference internal" href="#paxos-complex-notes">注释</a></li>
 </ul>

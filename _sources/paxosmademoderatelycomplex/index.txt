@@ -56,6 +56,36 @@ Paxos [13]_ 是允许Crash失效的异步环境中用状态机复制的协议。
 
 本论文给出了 *多维Paxos协议* （multi-decree Paxos protocol） 的 *操作说明* ，有时这个协议也被称为是 *multi-Paxos* 。单维Paxos是非常容易被理解，是 [15]_ [14]_ 等论文的主题。但是多维Paxos协议（或一些它的变种）正是被用到像Chubby [4]_ 和 ZooKeeper [10]_ 这样的工业强度系统中的协议。
 
+.. _paxos-complex-how-why:
+
+2 Paoxs如何工作和为什么能工作
+===============================================
+
+Replicas and Slots
+------------------------------------
+
+为了容忍 ``f`` 个Replica Crash，Paxos需要 ``f + 1`` 个Replica。当 ``κ`` 要执行命令 ``<κ, cid, op>`` 时，它需要广播消息 ``<*Request*, κ, cid, operation>>`` 给所有的Replica并等待有一个Replica的消息 ``<*Response*, cid, result>>`` 。
+
+Replica可以被认为有一序列的Slot可以用于填入命令。每个Slot有一个Slot编号。Replica当收到消息 ``<request, p>`` 后，提交命令 p 到没有使用的最低编号的Slote中。有客户端并发操作的情况，不同的Replica可能在同一个Slot中提交不同的命令。为了避免这种不一致，Replica在真正更新状态前等待Slot的确定，计算出响应发回给客户端。
+
+Replica没有必要在任何时间都是一致的。他们可能在不同的Slot中提交不同的命令。但是Replica在应用状态上执行的操作的顺序是一致的。图1 中是Replica的伪代码。任一个Replica ρ 维护了4个变量：
+
+* ρ.state ，（外部不得见的）应用状态。所有的Replica的初始状态是相同的。
+
+* ρ.slot_num ，Replica的当前slot编号（等价于状态的版本，初始值是1）。它包含的是在更新应用状态前下一个需要Learn决定的Slot。
+
+* ρ.proposals ， <Slot编号, 命令>对的一个集合，Replica过去提交了的提案，初始值是 *空* 。
+
+* ρ.decisions ，<Slot编号, 命令>对的一个集合，对应已经决定了的Slot，初始值也是 *空* 。
+
+在给出Replica的操作说明之前，我们先陈述一下Replica的这些持有变量中的一些重要的不变式：
+
+R1: 在相同的Slot中，已经决定了的命令没有2个是不同的： ∀s, ρ1, ρ2, p1, p2 : <s, p1> ∈ ρ1.decisions ∧ <s, p2> ∈ ρ2.decisions ⇒ p1 = p2
+
+.. figure:: figure1.png
+   :scale: 100
+
+   图1：Replica的伪代码
 
 .. _paxos-complex-references:
 
