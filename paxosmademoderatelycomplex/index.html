@@ -26,6 +26,7 @@
     <script type="text/javascript" src="../_static/underscore.js"></script>
     <script type="text/javascript" src="../_static/doctools.js"></script>
     <script type="text/javascript" src="../_static/translations.js"></script>
+    <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
     <link rel="shortcut icon" href="../_static/favicon.ico"/>
     <link rel="top" title="distributed system documents(dsdoc) v0.0.1-alpha" href="../index.html" />
     <link rel="next" title="【译】PaxosLease：实现租约的无盘Paxos算法" href="../paxoslease/index.html" />
@@ -83,15 +84,25 @@
 </div>
 <div class="section" id="paxos-complex-intro">
 <span id="id2"></span><h2>1 介绍<a class="headerlink" href="#paxos-complex-intro" title="永久链接至标题">¶</a></h2>
-<p>Paxos <a class="footnote-reference" href="#id17" id="id3">[13]</a> 是允许Crash失效的异步环境中用状态机复制的协议。有必把这个句子中的术语都仔细过一下：</p>
+<p>Paxos <a class="footnote-reference" href="#id26" id="id3">[13]</a> 是允许Crash失效的异步环境中用状态机复制的协议。有必把这个句子中的术语都仔细过一下：</p>
 <ul class="simple">
 <li><em>状态机</em> 由 一组状态、一组状态间的转换 和 一个当前状态 三者组成。响应一个发出的操作会 <em>转换</em> 到一个新的当前状态，并产生一个输出。从当前状态转换一个相同的状态是允许的，这用于建模一个只读操作。在一个 <em>确定状态机</em> （deterministic state machine）中，对于任一状态和任一操作，由这个操作触发的转换是唯一的。</li>
 <li>在一个 <em>异步环境</em> 里，对计时上是没有要求的。时钟以任意的速度运行，网络通信消耗任意长的时间，状态机响应一个操作后执行转换消耗长的时间。这里用的术语“异步”不要和对象上的非阻塞操作（常常也被称为异步）混淆了。</li>
+<li>如果状态机没有不再执行转换并且它的当前状态永远固定，则它已经经历了Crash失效（Failure）。没有其它的状态机失效，比如执行没有说明的转换，是不允许的。在一个“失效停止的环境”中 <a class="footnote-reference" href="#id34" id="id4">[21]</a> ，Crash失效可以被可靠的检测到；但在一个异步环境中，做不到这一点。</li>
+<li>状态机复制（State Machine Replication，SMR） <a class="footnote-reference" href="#id25" id="id5">[12]</a> <a class="footnote-reference" href="#id35" id="id6">[22]</a> 是一种掩盖失效的技术，特殊是Crash失效。一组确定状态机的Replica创建后，Replica提供的是一致的操作序列，所以最终它们会处于相同的状态并生成一致的输出序列。这里假设至少有一个Replica从没有Crash过。</li>
 </ul>
+<p>确定状态机用来建模服务器的处理，比如文件服务器、DNS服务器等等。客户进程使用“stub routine”库通过网络给服务器发送 <em>命令</em> 。一个命令是一个三元组 <tt class="docutils literal"><span class="pre">&lt;κ,</span> <span class="pre">cid,</span> <span class="pre">operation&gt;</span></tt>， κ <a class="footnote-reference" href="#id38" id="id7">[*]</a><sup>译注</sup> 是发出命令的客户进程的标识符， <em>cid</em> 是客户本地唯一的命令标识符（比如是一个序列号）。命令标识符必须包含在服务器的响应中，这样客户端才能把服务器响应和发出去的命令匹配起来。在状态机复制中，stub routine会被替换掉，以制造远程服务器是高可用的假象。stub routine把命令发给所有的Replica，只有有一个响应就返回。</p>
+<p>因为命令可能以不同的顺序到达Replica，所以多客户端带来的一个困难是Replica可能最终执行的是不同的转换，生成不同的输出，进而最终会有不同的当前状态。像Paxos这样的协议保证这种情况不会发生： 复制了的状态机逻辑行为和一个没有Crash <a class="footnote-reference" href="#id22" id="id8">[9]</a> 的远程状态机一致。</p>
+<p>进程是可能Crash的，我们假设进程间消息是可靠的（没有必要是FIFO的）：</p>
+<ul class="simple">
+<li>从一个没有错误（non-faulty）的进程发送另一个没有错误进程的消息最终会被目标进程收到（至少一次）。</li>
+<li>如果一个进程收到了一条消息，则这条消息是由某个进程发送的（这个进程可能是出错的进程）。也就是说，消息没有被篡改过，也不会凭空出现。</li>
+</ul>
+<p>本论文给出了 <em>多维Paxos协议</em> （multi-decree Paxos protocol） 的 <em>操作说明</em> ，有时这个协议也被称为是 <em>multi-Paxos</em> 。单维Paxos是非常容易被理解，是 <a class="footnote-reference" href="#id28" id="id9">[15]</a> <a class="footnote-reference" href="#id27" id="id10">[14]</a> 等论文的主题。但是多维Paxos协议（或一些它的变种）正是被用到像Chubby <a class="footnote-reference" href="#id17" id="id11">[4]</a> 和 ZooKeeper <a class="footnote-reference" href="#id23" id="id12">[10]</a> 这样的工业强度系统中的协议。</p>
 </div>
 <div class="section" id="paxos-complex-references">
-<span id="id4"></span><h2>参考文献<a class="headerlink" href="#paxos-complex-references" title="永久链接至标题">¶</a></h2>
-<table class="docutils footnote" frame="void" id="id5" rules="none">
+<span id="id13"></span><h2>参考文献<a class="headerlink" href="#paxos-complex-references" title="永久链接至标题">¶</a></h2>
+<table class="docutils footnote" frame="void" id="id14" rules="none">
 <colgroup><col class="label" /><col /></colgroup>
 <tbody valign="top">
 <tr><td class="label">[1]</td><td><ol class="first last upperalpha simple" start="16">
@@ -100,7 +111,7 @@
 </td></tr>
 </tbody>
 </table>
-<table class="docutils footnote" frame="void" id="id6" rules="none">
+<table class="docutils footnote" frame="void" id="id15" rules="none">
 <colgroup><col class="label" /><col /></colgroup>
 <tbody valign="top">
 <tr><td class="label">[2]</td><td><ol class="first last upperalpha simple" start="8">
@@ -109,7 +120,7 @@
 </td></tr>
 </tbody>
 </table>
-<table class="docutils footnote" frame="void" id="id7" rules="none">
+<table class="docutils footnote" frame="void" id="id16" rules="none">
 <colgroup><col class="label" /><col /></colgroup>
 <tbody valign="top">
 <tr><td class="label">[3]</td><td><ol class="first last upperalpha simple" start="18">
@@ -118,34 +129,34 @@
 </td></tr>
 </tbody>
 </table>
-<table class="docutils footnote" frame="void" id="id8" rules="none">
+<table class="docutils footnote" frame="void" id="id17" rules="none">
 <colgroup><col class="label" /><col /></colgroup>
 <tbody valign="top">
-<tr><td class="label">[4]</td><td><ol class="first last upperalpha simple" start="13">
+<tr><td class="label"><a class="fn-backref" href="#id11">[4]</a></td><td><ol class="first last upperalpha simple" start="13">
 <li>Burrows. The Chubby Lock Service for loosely-coupled distributed systems. In <em>:sup:`7th` Sym-posium on Operating System Design and Implementation</em>, Seattle, WA, November 2006.</li>
 </ol>
 </td></tr>
 </tbody>
 </table>
-<table class="docutils footnote" frame="void" id="id9" rules="none">
+<table class="docutils footnote" frame="void" id="id18" rules="none">
 <colgroup><col class="label" /><col /></colgroup>
 <tbody valign="top">
 <tr><td class="label">[5]</td><td>T.D. Chandra, R. Griesemer, and J. Redstone. Paxos made live: an engineering perspective. In <em>Proc. of the 26:sup:`th` ACM Symp. on Principles of Distributed Computing</em>, pages 398-407, Portland, OR, May 2007. ACM.</td></tr>
 </tbody>
 </table>
-<table class="docutils footnote" frame="void" id="id10" rules="none">
+<table class="docutils footnote" frame="void" id="id19" rules="none">
 <colgroup><col class="label" /><col /></colgroup>
 <tbody valign="top">
 <tr><td class="label">[6]</td><td>T.D. Chandra and S. Toueg. Unreliable failure detectors for asynchronous systems. InProc. of the 11th ACM Symp. on Principles of Dis-tributed Computing, pages 325{340, Montreal, Quebec, August 1991. ACM SIGOPS-SIGACT.</td></tr>
 </tbody>
 </table>
-<table class="docutils footnote" frame="void" id="id11" rules="none">
+<table class="docutils footnote" frame="void" id="id20" rules="none">
 <colgroup><col class="label" /><col /></colgroup>
 <tbody valign="top">
 <tr><td class="label">[7]</td><td>M.J. Fischer, N.A. Lynch, and M.S. Patterson. Impossibility of distributed consensus with one faulty process. J. ACM, 32(2):374-382, April 1985.</td></tr>
 </tbody>
 </table>
-<table class="docutils footnote" frame="void" id="id12" rules="none">
+<table class="docutils footnote" frame="void" id="id21" rules="none">
 <colgroup><col class="label" /><col /></colgroup>
 <tbody valign="top">
 <tr><td class="label">[8]</td><td><ol class="first last upperalpha simple" start="3">
@@ -154,25 +165,25 @@
 </td></tr>
 </tbody>
 </table>
-<table class="docutils footnote" frame="void" id="id13" rules="none">
+<table class="docutils footnote" frame="void" id="id22" rules="none">
 <colgroup><col class="label" /><col /></colgroup>
 <tbody valign="top">
-<tr><td class="label">[9]</td><td><ol class="first last upperalpha simple" start="13">
+<tr><td class="label"><a class="fn-backref" href="#id8">[9]</a></td><td><ol class="first last upperalpha simple" start="13">
 <li>Herlihy and J. Wing. Linearizability: a correctness condition for concurrent objects. ACM Transactions on Programming Languages and Systems (TOPLAS), 12(3):463-492, 1990.</li>
 </ol>
 </td></tr>
 </tbody>
 </table>
-<table class="docutils footnote" frame="void" id="id14" rules="none">
+<table class="docutils footnote" frame="void" id="id23" rules="none">
 <colgroup><col class="label" /><col /></colgroup>
 <tbody valign="top">
-<tr><td class="label">[10]</td><td><ol class="first last upperalpha simple" start="6">
+<tr><td class="label"><a class="fn-backref" href="#id12">[10]</a></td><td><ol class="first last upperalpha simple" start="6">
 <li>Junqueira, P. Hunt, M. Konar, and B. Reed. The ZooKeeper Coordination Service (poster). In Symposium on Operating Systems Principles (SOSP), 2009.</li>
 </ol>
 </td></tr>
 </tbody>
 </table>
-<table class="docutils footnote" frame="void" id="id15" rules="none">
+<table class="docutils footnote" frame="void" id="id24" rules="none">
 <colgroup><col class="label" /><col /></colgroup>
 <tbody valign="top">
 <tr><td class="label">[11]</td><td><ol class="first last upperalpha simple" start="10">
@@ -181,55 +192,55 @@
 </td></tr>
 </tbody>
 </table>
-<table class="docutils footnote" frame="void" id="id16" rules="none">
+<table class="docutils footnote" frame="void" id="id25" rules="none">
 <colgroup><col class="label" /><col /></colgroup>
 <tbody valign="top">
-<tr><td class="label">[12]</td><td><ol class="first last upperalpha simple" start="12">
+<tr><td class="label"><a class="fn-backref" href="#id5">[12]</a></td><td><ol class="first last upperalpha simple" start="12">
 <li>Lamport. Time, clocks, and the order-ing of events in a distributed system. CACM, 21(7):558-565, July 1978.</li>
 </ol>
 </td></tr>
 </tbody>
 </table>
-<table class="docutils footnote" frame="void" id="id17" rules="none">
+<table class="docutils footnote" frame="void" id="id26" rules="none">
 <colgroup><col class="label" /><col /></colgroup>
 <tbody valign="top">
-<tr><td class="label"><a class="fn-backref" href="#id3">[13]</a></td><td><ol class="first last upperalpha simple" start="12">
+<tr><td class="label">[13]</td><td><em>(<a class="fn-backref" href="#id3">1</a>, <a class="fn-backref" href="#id39">2</a>)</em> <ol class="last upperalpha simple" start="12">
 <li>Lamport. The part-time parliament. Trans. on Computer Systems, 16(2):133-169, 1998.</li>
 </ol>
 </td></tr>
 </tbody>
 </table>
-<table class="docutils footnote" frame="void" id="id18" rules="none">
+<table class="docutils footnote" frame="void" id="id27" rules="none">
 <colgroup><col class="label" /><col /></colgroup>
 <tbody valign="top">
-<tr><td class="label">[14]</td><td><ol class="first last upperalpha simple" start="12">
+<tr><td class="label"><a class="fn-backref" href="#id10">[14]</a></td><td><ol class="first last upperalpha simple" start="12">
 <li>Lamport. Paxos made simple. ACM SIGACT News (Distributed Computing Col-umn), 32(4):51-58, 2001.</li>
 </ol>
 </td></tr>
 </tbody>
 </table>
-<table class="docutils footnote" frame="void" id="id19" rules="none">
+<table class="docutils footnote" frame="void" id="id28" rules="none">
 <colgroup><col class="label" /><col /></colgroup>
 <tbody valign="top">
-<tr><td class="label">[15]</td><td><ol class="first last upperalpha simple" start="2">
+<tr><td class="label"><a class="fn-backref" href="#id9">[15]</a></td><td><ol class="first last upperalpha simple" start="2">
 <li>Lampson. How to build a highly available system using consensus. In O. Babaoglu and K. Marzullo, editors,Distributed Algorithms, volume 115 ofLecture Notes on Computer Sci-ence, pages 1-17. Springer-Verlag, 1996.</li>
 </ol>
 </td></tr>
 </tbody>
 </table>
-<table class="docutils footnote" frame="void" id="id20" rules="none">
+<table class="docutils footnote" frame="void" id="id29" rules="none">
 <colgroup><col class="label" /><col /></colgroup>
 <tbody valign="top">
 <tr><td class="label">[16]</td><td>B.W. Lampson. The ABCD&#8217;s of Paxos. In Proc. of the 20th ACM Symp. on Principles of Dis-tributed Computing, page 13, Newport, RI, 2001. ACM Press.</td></tr>
 </tbody>
 </table>
-<table class="docutils footnote" frame="void" id="id21" rules="none">
+<table class="docutils footnote" frame="void" id="id30" rules="none">
 <colgroup><col class="label" /><col /></colgroup>
 <tbody valign="top">
 <tr><td class="label">[17]</td><td>H.C. Li, A. Clement, A. S. Aiyer, and L. Alvisi. The Paxos register. InProceedings of the 26th IEEE International Symposium on Reliable Dis-tributed Systems (SRDS 07), 2007.</td></tr>
 </tbody>
 </table>
-<table class="docutils footnote" frame="void" id="id22" rules="none">
+<table class="docutils footnote" frame="void" id="id31" rules="none">
 <colgroup><col class="label" /><col /></colgroup>
 <tbody valign="top">
 <tr><td class="label">[18]</td><td><ol class="first last upperalpha simple" start="4">
@@ -238,13 +249,13 @@
 </td></tr>
 </tbody>
 </table>
-<table class="docutils footnote" frame="void" id="id23" rules="none">
+<table class="docutils footnote" frame="void" id="id32" rules="none">
 <colgroup><col class="label" /><col /></colgroup>
 <tbody valign="top">
 <tr><td class="label">[19]</td><td>B.M. Oki and B.H. Liskov. Viewstamped repli-cation: A general primary-copy method to sup-port highly-available distributed systems. In Proc. of the 7th ACM Symp. on Principles of Distributed Computing, pages 8-17, Toronto, Ontario, August 1988. ACM SIGOPS-SIGACT.</td></tr>
 </tbody>
 </table>
-<table class="docutils footnote" frame="void" id="id24" rules="none">
+<table class="docutils footnote" frame="void" id="id33" rules="none">
 <colgroup><col class="label" /><col /></colgroup>
 <tbody valign="top">
 <tr><td class="label">[20]</td><td><ol class="first last upperalpha simple" start="18">
@@ -253,22 +264,31 @@
 </td></tr>
 </tbody>
 </table>
-<table class="docutils footnote" frame="void" id="id25" rules="none">
+<table class="docutils footnote" frame="void" id="id34" rules="none">
 <colgroup><col class="label" /><col /></colgroup>
 <tbody valign="top">
-<tr><td class="label">[21]</td><td>R.D. Schlichting and F.B. Schneider. Fail-stop processors: an approach to designing fault-tolerant computing systems. Trans. on Com-puter Systems, 1(3):222-238, August 1983.</td></tr>
+<tr><td class="label"><a class="fn-backref" href="#id4">[21]</a></td><td>R.D. Schlichting and F.B. Schneider. Fail-stop processors: an approach to designing fault-tolerant computing systems. Trans. on Com-puter Systems, 1(3):222-238, August 1983.</td></tr>
 </tbody>
 </table>
-<table class="docutils footnote" frame="void" id="id26" rules="none">
+<table class="docutils footnote" frame="void" id="id35" rules="none">
 <colgroup><col class="label" /><col /></colgroup>
 <tbody valign="top">
-<tr><td class="label">[22]</td><td>F.B. Schneider. Implementing fault-tolerant ser-vices using the state machine approach: A tuto-rial. ACM Computing Surveys, 22(4):299-319, December 1990.</td></tr>
+<tr><td class="label"><a class="fn-backref" href="#id6">[22]</a></td><td>F.B. Schneider. Implementing fault-tolerant ser-vices using the state machine approach: A tuto-rial. ACM Computing Surveys, 22(4):299-319, December 1990.</td></tr>
 </tbody>
 </table>
-<table class="docutils footnote" frame="void" id="id27" rules="none">
+<table class="docutils footnote" frame="void" id="id36" rules="none">
 <colgroup><col class="label" /><col /></colgroup>
 <tbody valign="top">
 <tr><td class="label">[23]</td><td>R.H. Thomas. A solution to the concurrency control problem for multiple copy databases. In Proc. of COMPCON 78 Spring, pages 88-93, Washington, D.C., February 1978. IEEE Com-puter Society.</td></tr>
+</tbody>
+</table>
+</div>
+<div class="section" id="paxos-complex-notes">
+<span id="id37"></span><h2>注释<a class="headerlink" href="#paxos-complex-notes" title="永久链接至标题">¶</a></h2>
+<table class="docutils footnote" frame="void" id="id38" rules="none">
+<colgroup><col class="label" /><col /></colgroup>
+<tbody valign="top">
+<tr><td class="label"><a class="fn-backref" href="#id7">[*]</a></td><td>和 <a class="footnote-reference" href="#id26" id="id39">[13]</a> 一样，使用希腊字母来标识进程。</td></tr>
 </tbody>
 </table>
 </div>
@@ -302,6 +322,7 @@
 <li><a class="reference internal" href="#paxos-complex-abstract">摘要</a></li>
 <li><a class="reference internal" href="#paxos-complex-intro">1 介绍</a></li>
 <li><a class="reference internal" href="#paxos-complex-references">参考文献</a></li>
+<li><a class="reference internal" href="#paxos-complex-notes">注释</a></li>
 </ul>
 </li>
 </ul>
@@ -351,7 +372,7 @@
     </div>
     <div class="footer">
         &copy; 版权所有 2012, dsdoc.net.
-      最后更新日期是 2013-01-04.
+      最后更新日期是 2013-01-05.
       使用 <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.1.3.
     </div>
   </body>
