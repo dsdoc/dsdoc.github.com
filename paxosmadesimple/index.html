@@ -1,5 +1,4 @@
 
-
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
   "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 
@@ -109,7 +108,7 @@
 <li>只能有一个值被选定(chosen)，同时</li>
 <li>如果某个进程认为某个提案被选定了，那么这个提案必须是真的被选定的那个。</li>
 </ul>
-<p>我们不会精确地描述活性(Livness)需求。整体上来说，目标就是要保证最终有一个提案会被选定，当提案被选定后，进程最终也能获取到被选定的提案。 <a class="footnote-reference" href="#id45" id="id12">[†]</a><sup>译注</sup></p>
+<p>我们不会精确地描述活性(Liveness)需求。整体上来说，目标就是要保证最终有一个提案会被选定，当提案被选定后，进程最终也能获取到被选定的提案。 <a class="footnote-reference" href="#id45" id="id12">[†]</a><sup>译注</sup></p>
 <p>在该一致性算法中，有三种参与角色，我们用 <cite>Proposers</cite> ， <cite>Acceptors</cite> 和 <cite>Learners</cite> 来表示。在具体的实现中，一个进程可能充当不止一种角色，在这里我们并不关心进程如何映射到各种角色。</p>
 <p>假设不同参与者之间可以通过发送消息来通信，我们使用普通的非拜占庭模式的异步模型：</p>
 <ul class="simple">
@@ -268,10 +267,10 @@
 <table class="docutils footnote" frame="void" id="id45" rules="none">
 <colgroup><col class="label" /><col /></colgroup>
 <tbody valign="top">
-<tr><td class="label"><a class="fn-backref" href="#id12">[†]</a></td><td><p class="first">译注。一个分布式算法，有两个最重要的属性：Safety 和Livness，简单来说：</p>
+<tr><td class="label"><a class="fn-backref" href="#id12">[†]</a></td><td><p class="first">译注。一个分布式算法，有两个最重要的属性：Safety 和Liveness，简单来说：</p>
 <ul class="last simple">
 <li>Safety是指那些需要保证永远都不会发生的事情。</li>
-<li>Livness是指那些最终一定会发生的事情。</li>
+<li>Liveness是指那些最终一定会发生的事情。</li>
 </ul>
 </td></tr>
 </tbody>
@@ -465,12 +464,12 @@
   <h3>快速搜索</h3>
     <form class="search" action="../search.html" method="get">
       <input type="text" name="q" />
-      <input type="submit" value="搜索" />
+      <input type="submit" value="转向" />
       <input type="hidden" name="check_keywords" value="yes" />
       <input type="hidden" name="area" value="default" />
     </form>
     <p class="searchtip" style="font-size: 90%">
-    输入相关的模块，术语，类或者函数名称进行搜索
+    输入相关的术语，模块，类或者函数名称进行搜索
     </p>
 </div>
 <script type="text/javascript">$('#searchbox').show(0);</script>
@@ -495,8 +494,8 @@
     </div>
     <div class="footer">
         &copy; 版权所有 2012, dsdoc.net.
-      最后更新日期是 2013-01-05.
-      使用 <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.1.3.
+      最后更新于 2014-07-27.
+      由 <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.2 创建。
     </div>
   </body>
 </html>
